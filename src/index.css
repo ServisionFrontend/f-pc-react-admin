@@ -207,6 +207,15 @@ body {
   background: #f5f5f5 !important;
 }
 
+/* Fix for ant-table-measure-row being visible due to global padding override */
+.ant-table-tbody > tr.ant-table-measure-row > td {
+  padding: 0 !important;
+  border: none !important;
+  height: 0 !important;
+  line-height: 0 !important;
+  font-size: 0 !important;
+}
+
 /* Tag Customization */
 .ant-tag {
   border-radius: 6px;

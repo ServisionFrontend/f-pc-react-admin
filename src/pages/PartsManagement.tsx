@@ -233,8 +233,8 @@ const EditableCell: React.FC<EditableCellProps> = ({
             {editing ? (
                 <Form.Item
                     name={dataIndex}
-                    style={{ margin: 0 }}
-                    rules={[{ required: !['remark'].includes(dataIndex), message: `请输入${title}` }]}
+                    rules={[{ required: !['remark'].includes(dataIndex) }]}
+                    noStyle
                 >
                     {inputNode}
                 </Form.Item>
@@ -324,6 +324,12 @@ const PartsManagement: React.FC = () => {
             const rect = tableEl.getBoundingClientRect();
             top = rect.top;
             height = rect.height;
+
+            // 减去横向滚动条的高度防止遮挡
+            const tableBody = tableContainer?.querySelector('.ant-table-body');
+            if (tableBody instanceof HTMLElement) {
+                height -= (tableBody.offsetHeight - tableBody.clientHeight);
+            }
         }
 
         // 创建拖动指示线（只覆盖表格高度）
@@ -335,7 +341,7 @@ const PartsManagement: React.FC = () => {
             height: ${height}px;
             width: 2px;
             background: var(--primary-color, #4f46e5);
-            z-index: 9999;
+            z-index: 1;
             pointer-events: none;
             left: ${startX}px;
         `;
@@ -369,24 +375,34 @@ const PartsManagement: React.FC = () => {
     const handleMouseMove = useCallback((e: MouseEvent) => {
         if (!resizingRef.current) return;
 
-        const { startX, startWidth, dataIndex } = resizingRef.current;
+        const { startX, startWidth } = resizingRef.current;
         const diff = e.clientX - startX;
         const newWidth = Math.max(50, startWidth + diff); // 最小宽度 50px
 
+        // 计算实际的移动距离（受限于最小宽度）
+        const effectiveDiff = newWidth - startWidth;
+        const indicatorLeft = startX + effectiveDiff;
+
         // 更新指示线位置
         if (resizeIndicatorRef.current) {
-            resizeIndicatorRef.current.style.left = `${e.clientX}px`;
+            resizeIndicatorRef.current.style.left = `${indicatorLeft}px`;
         }
-
-        // 实时更新列宽
-        setColumnWidths((prev) => ({
-            ...prev,
-            [dataIndex]: newWidth,
-        }));
     }, []);
 
     // 鼠标释放
-    const handleMouseUp = useCallback(() => {
+    const handleMouseUp = useCallback((e: MouseEvent) => {
+        if (resizingRef.current) {
+            const { startX, startWidth, dataIndex } = resizingRef.current;
+            const diff = e.clientX - startX;
+            const newWidth = Math.max(50, startWidth + diff); // 最小宽度 50px
+
+            // 更新列宽
+            setColumnWidths((prev) => ({
+                ...prev,
+                [dataIndex]: newWidth,
+            }));
+        }
+
         resizingRef.current = null;
 
         // 移除指示线
