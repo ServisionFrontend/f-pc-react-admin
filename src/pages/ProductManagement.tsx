@@ -4,11 +4,6 @@ import { ShoppingOutlined } from '@ant-design/icons';
 const ProductManagement = () => {
     return (
         <div>
-            <div className="page-header">
-                <h1 className="page-title">产品管理</h1>
-                <p className="page-subtitle">在这里管理您的产品清单。</p>
-            </div>
-
             <Card className="premium-card" style={{ minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ textAlign: 'center' }}>
                     <div style={{

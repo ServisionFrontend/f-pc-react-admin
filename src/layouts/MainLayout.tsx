@@ -10,6 +10,7 @@ import {
   BellOutlined,
   SettingOutlined,
   LogoutOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 
@@ -40,6 +41,11 @@ const MainLayout = () => {
       key: '/products',
       icon: <ShoppingOutlined />,
       label: '产品管理',
+    },
+    {
+      key: '/parts',
+      icon: <ToolOutlined />,
+      label: '配件管理',
     },
   ];
 

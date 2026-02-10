@@ -5,11 +5,6 @@ import { Tag } from 'antd';
 const RoleManagement = () => {
     return (
         <div>
-            <div className="page-header">
-                <h1 className="page-title">角色管理</h1>
-                <p className="page-subtitle">配置系统角色及其权限定义。</p>
-            </div>
-
             <SvCrud api={roleService} readUrl="/roles">
                 <SvQuery>
                     <SvItem name="roleName" label="角色名称" />

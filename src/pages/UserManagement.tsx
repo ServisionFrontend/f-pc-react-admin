@@ -5,11 +5,6 @@ import { Tag, Space } from 'antd';
 const UserManagement = () => {
     return (
         <div>
-            <div className="page-header">
-                <h1 className="page-title">用户管理</h1>
-                <p className="page-subtitle">在这里管理您的系统用户，进行增删改查操作。</p>
-            </div>
-
             {/* 
                 Use api prop for mock service. 
                 In real world, you would use readUrl="/api/users" etc.

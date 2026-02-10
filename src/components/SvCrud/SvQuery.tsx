@@ -55,10 +55,10 @@ const SvQuery: React.FC<SvQueryProps> = ({ children, cols = 4 }) => {
 
 
     return (
-        <div style={{ padding: '24px 24px 0', background: '#fff', marginBottom: 16, borderRadius: 8 }}>
+        <div style={{ padding: '16px 16px 0', background: '#fff', marginBottom: 12, borderRadius: 6 }}>
             <Form form={form} layout="inline" onKeyPress={(e) => e.key === 'Enter' && handleSearch()}>
                 {items.map((item, idx) => (
-                    <Form.Item key={item.name || idx} name={item.name} label={item.label} style={{ marginBottom: 24 }}>
+                    <Form.Item key={item.name || idx} name={item.name} label={item.label} style={{ marginBottom: 16 }}>
                         {item.type === 'select' || item.type === 'combobox' ?
                             <Select placeholder={`请选择`} allowClear options={item.options} style={{ width: 180, height: 32 }} /> :
                             item.type === 'date' ?
@@ -68,7 +68,7 @@ const SvQuery: React.FC<SvQueryProps> = ({ children, cols = 4 }) => {
                     </Form.Item>
                 ))}
 
-                <Form.Item style={{ marginBottom: 24 }}>
+                <Form.Item style={{ marginBottom: 16 }}>
                     <Space>
                         <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch} loading={loading}>查询</Button>
                         <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>

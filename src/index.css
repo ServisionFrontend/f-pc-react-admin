@@ -157,23 +157,19 @@ body {
 .ant-btn-primary {
   background: var(--premium-gradient) !important;
   border: none !important;
-  height: 40px;
-  padding: 0 20px;
   font-weight: 500;
-  border-radius: 10px !important;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4) !important;
-  transition: all 0.3s ease;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3) !important;
+  transition: all 0.2s ease;
 }
 
 .ant-btn-primary:hover {
   opacity: 0.95;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.5) !important;
+  box-shadow: 0 3px 8px rgba(79, 70, 229, 0.4) !important;
 }
 
 .ant-btn-default {
-  border-radius: 10px !important;
-  height: 40px;
+  border-radius: 6px !important;
   border-color: #e5e7eb !important;
   color: #4b5563 !important;
 }
@@ -186,27 +182,29 @@ body {
 /* Table Customization */
 .ant-table-wrapper {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .ant-table-thead>tr>th {
-  background: #f9fafb !important;
+  background: #fafafa !important;
   color: #6b7280;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: 1px solid #e5e7eb !important;
+  padding: 8px 12px !important;
 }
 
 .ant-table-tbody>tr>td {
   border-bottom: 1px solid #f3f4f6 !important;
-  padding: 16px !important;
+  padding: 8px 12px !important;
   color: #374151;
+  font-size: 13px;
 }
 
 .ant-table-tbody>tr:hover>td {
-  background: #f9fafb !important;
+  background: #f5f5f5 !important;
 }
 
 /* Tag Customization */
@@ -220,8 +218,7 @@ body {
 /* Input Customization */
 .ant-input,
 .ant-input-affix-wrapper {
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: 6px;
   border-color: #e5e7eb;
 }
 
@@ -232,24 +229,29 @@ body {
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
 }
 
+/* Select Customization */
+.ant-select-selector {
+  border-radius: 6px !important;
+}
+
 /* Page Headers */
 .page-header {
-  margin-bottom: 32px;
-  animation: fadeIn 0.5s ease-out;
+  margin-bottom: 16px;
+  animation: fadeIn 0.4s ease-out;
 }
 
 .page-title {
   font-family: 'Outfit', sans-serif;
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 700;
   color: #111827;
-  margin: 0 0 8px 0;
+  margin: 0 0 4px 0;
   letter-spacing: -0.02em;
 }
 
 .page-subtitle {
   color: var(--text-secondary);
-  font-size: 15px;
+  font-size: 13px;
   margin: 0;
   max-width: 600px;
 }
@@ -284,4 +286,44 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Resizable Table Column Handle - 原生拖拽实现 */
+.ant-table-thead>tr>th {
+  position: relative;
+}
+
+/* 列宽调整手柄 - 延伸到整个表格高度 */
+.column-resize-handle {
+  position: absolute;
+  right: -5px;
+  top: 0;
+  width: 10px;
+  height: 2000px;
+  /* 足够大的高度覆盖整个表格 */
+  cursor: col-resize;
+  z-index: 10;
+  background: transparent;
+}
+
+/* 拖拽时显示竖线指示器 */
+.column-resize-handle::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+/* 悬停时显示蓝色竖线（覆盖整列高度） */
+.column-resize-handle:hover::after {
+  background: var(--primary-color);
+}
+
+/* 隐藏默认的 react-resizable 图标（如果还有残留） */
+.react-resizable-handle {
+  display: none;
 }

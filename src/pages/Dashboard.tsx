@@ -84,11 +84,6 @@ const Dashboard = () => {
 
     return (
         <div>
-            <div className="page-header">
-                <h1 className="page-title">后台概览</h1>
-                <p className="page-subtitle">欢迎回来，这是您今天的业务数据报告。</p>
-            </div>
-
             <Row gutter={[24, 24]}>
                 {stats.map((stat, index) => (
                     <Col xs={24} sm={12} lg={6} key={index}>
