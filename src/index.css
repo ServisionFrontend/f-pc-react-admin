@@ -196,6 +196,43 @@ body {
   padding: 8px 12px !important;
 }
 
+/* 彻底修复表头右上角"口子" —— 让表头容器和行都有背景色，填充固定列之间的空隙 */
+.full-height-table .ant-table-header {
+  background: #fafafa !important;
+}
+
+.full-height-table .ant-table-thead>tr {
+  background: #fafafa !important;
+}
+
+/* 滚动条占位单元格样式 */
+.full-height-table .ant-table-thead>tr>th.ant-table-cell-scrollbar {
+  padding: 0 !important;
+  background: #fafafa !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  border-top: none !important;
+  border-right: none !important;
+  border-left: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.full-height-table .ant-table-thead>tr>th.ant-table-cell-scrollbar::before,
+.full-height-table .ant-table-thead>tr>th.ant-table-cell-scrollbar::after {
+  display: none !important;
+}
+
+/* 移除固定列右侧阴影 */
+.full-height-table .ant-table-thead .ant-table-cell-fix-right-first::after {
+  box-shadow: none !important;
+}
+
+/* 确保表格容器本身裁切圆角，而不是靠单元格 */
+.full-height-table .ant-table-container {
+  border-top-right-radius: 8px;
+  overflow: hidden;
+}
+
 .ant-table-tbody>tr>td {
   border-bottom: 1px solid #f3f4f6 !important;
   padding: 8px 12px !important;
@@ -208,7 +245,7 @@ body {
 }
 
 /* Fix for ant-table-measure-row being visible due to global padding override */
-.ant-table-tbody > tr.ant-table-measure-row > td {
+.ant-table-tbody>tr.ant-table-measure-row>td {
   padding: 0 !important;
   border: none !important;
   height: 0 !important;
@@ -302,6 +339,12 @@ body {
   position: relative;
 }
 
+/* 固定列表头需要保持 sticky 定位，不能被上面的 position: relative 覆盖 */
+.ant-table-thead>tr>th.ant-table-cell-fix-left,
+.ant-table-thead>tr>th.ant-table-cell-fix-right {
+  position: sticky !important;
+}
+
 /* 列宽调整手柄 - 延伸到整个表格高度 */
 .column-resize-handle {
   position: absolute;
@@ -335,4 +378,47 @@ body {
 /* 隐藏默认的 react-resizable 图标（如果还有残留） */
 .react-resizable-handle {
   display: none;
+}
+
+/* Full Height Table Layout */
+.full-height-table {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.full-height-table .ant-spin-nested-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.full-height-table .ant-spin-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+}
+
+.full-height-table .ant-table {
+  flex: 1;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  flex-direction: column;
+}
+
+.full-height-table .ant-table-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.full-height-table .ant-table-body {
+  flex: auto !important;
+}
+
+.full-height-table .ant-pagination {
+  margin-top: auto !important;
+  padding-top: 16px;
 }

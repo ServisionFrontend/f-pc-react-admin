@@ -1,22 +1,41 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Table, Button, Space, Input, InputNumber, Select, Tag, Popconfirm, Form, message, Row, Col, Tooltip, Modal } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined, SearchOutlined, ReloadOutlined, DownOutlined, UpOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Input, InputNumber, Select, Tag, Popconfirm, Form, message, Row, Col, Tooltip, Modal, Dropdown, Checkbox } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined, SearchOutlined, ReloadOutlined, DownOutlined, UpOutlined, LockOutlined, UnlockOutlined, AppstoreOutlined, CaretDownOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import partsService, { Part } from '../services/partsService';
+
+// 所有可切换列的定义
+const ALL_COLUMN_DEFS = [
+    { dataIndex: 'partNo', title: '配件编号' },
+    { dataIndex: 'partName', title: '配件名称' },
+    { dataIndex: 'partNameEn', title: '英文名称' },
+    { dataIndex: 'size', title: '尺寸' },
+    { dataIndex: 'section', title: '科组' },
+    { dataIndex: 'quantity', title: '用量' },
+    { dataIndex: 'status', title: '状态' },
+    { dataIndex: 'remark', title: '备注' },
+];
 
 // 列宽调整上下文
 interface ResizeContextType {
     startResize: (dataIndex: string, startX: number, startWidth: number) => void;
+    allColumns: { dataIndex: string; title: string }[];
+    hiddenColumns: string[];
+    frozenColumns: string[];
+    toggleColumnVisibility: (dataIndex: string) => void;
+    freezeColumn: (dataIndex: string) => void;
+    unfreezeColumn: (dataIndex: string) => void;
 }
 const ResizeContext = React.createContext<ResizeContextType | null>(null);
 
-// 可调整列宽的表头组件 - 使用原生鼠标事件
+// 可调整列宽的表头组件 - 使用原生鼠标事件 + 列头下拉菜单
 const ResizableTitle = (props: any) => {
-    const { onResize, width, dataIndex, ...restProps } = props;
+    // 从 props 中提取 onClick（antd 排序用），不传给 th，而是仅传给内容区域
+    const { onResize, width, dataIndex, onClick: sortOnClick, ...restProps } = props;
     const resizeContext = React.useContext(ResizeContext);
 
     if (!width || !dataIndex) {
-        return <th {...restProps} />;
+        return <th {...restProps} onClick={sortOnClick} />;
     }
 
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -25,9 +44,100 @@ const ResizableTitle = (props: any) => {
         resizeContext?.startResize(dataIndex, e.clientX, width);
     };
 
+    // 操作列不显示下拉菜单
+    const showDropdown = dataIndex !== 'operation';
+    const isFrozen = resizeContext?.frozenColumns.includes(dataIndex) ?? false;
+
+    const handleMenuClick = (info: any) => {
+        if (info.key.startsWith('col-')) {
+            const colKey = info.key.replace('col-', '');
+            resizeContext?.toggleColumnVisibility(colKey);
+        } else if (info.key === 'freeze') {
+            resizeContext?.freezeColumn(dataIndex);
+        } else if (info.key === 'unfreeze') {
+            resizeContext?.unfreezeColumn(dataIndex);
+        }
+    };
+
+    const dropdownMenuItems = showDropdown && resizeContext ? [
+        {
+            key: 'columns',
+            label: '列',
+            icon: <AppstoreOutlined />,
+            children: resizeContext.allColumns.map(col => ({
+                key: `col-${col.dataIndex}`,
+                label: (
+                    <div
+                        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            resizeContext?.toggleColumnVisibility(col.dataIndex);
+                        }}
+                    >
+                        <Checkbox
+                            checked={!resizeContext.hiddenColumns.includes(col.dataIndex)}
+                            style={{ pointerEvents: 'none' }}
+                        />
+                        <span>{col.title}</span>
+                    </div>
+                ),
+            })),
+        },
+        {
+            key: 'freeze',
+            label: '冻结列',
+            icon: <LockOutlined />,
+            disabled: isFrozen,
+        },
+        {
+            key: 'unfreeze',
+            label: '解冻列',
+            icon: <UnlockOutlined />,
+            disabled: !isFrozen,
+        },
+    ] : [];
+
     return (
-        <th {...restProps} style={{ ...restProps.style, position: 'relative' }}>
-            {restProps.children}
+        <th {...restProps} style={{ ...(restProps.style || {}) }}>
+            <div className="column-header-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                {/* 排序点击区域 */}
+                <div
+                    className="column-header-content"
+                    onClick={sortOnClick}
+                    style={{ flex: 1, minWidth: 0 }}
+                >
+                    {restProps.children}
+                </div>
+                {/* 下拉菜单区域：与排序事件解耦 */}
+                {showDropdown && (
+                    <div
+                        className="dropdown-event-blocker"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.nativeEvent.stopImmediatePropagation();
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseUp={(e) => e.stopPropagation()}
+                        // 【关键】增加 z-index，防止被 Antd 表格列头自带的 ::before 热区遮挡劫持点击！
+                        style={{ display: 'inline-flex', alignItems: 'center', position: 'relative', zIndex: 10 }}
+                    >
+                        <Dropdown
+                            menu={{ items: dropdownMenuItems, onClick: handleMenuClick }}
+                            trigger={['click']}
+                            destroyPopupOnHide
+                        >
+                            <div
+                                className="column-header-dropdown-wrapper"
+                                style={{ padding: '0 4px', height: '100%', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}
+                            >
+                                <span className="column-header-dropdown-trigger">
+                                    <CaretDownOutlined />
+                                </span>
+                            </div>
+                        </Dropdown>
+                    </div>
+                )}
+            </div>
             <span
                 className="column-resize-handle"
                 onMouseDown={handleMouseDown}
@@ -93,7 +203,7 @@ interface SizeSelectModalProps {
 const SizeSelectModal: React.FC<SizeSelectModalProps> = ({ open, onCancel, onOk }) => {
     const [selectedSizeKey, setSelectedSizeKey] = useState<React.Key[]>([]);
     const [searchText, setSearchText] = useState('');
-    const [dataSource, setDataSource] = useState([
+    const [dataSource] = useState([
         { key: '1', size: 'M6x20mm', description: '标准螺丝尺寸' },
         { key: '2', size: 'φ10x2mm', description: '常用垫片尺寸' },
         { key: '3', size: 'M8', description: '标准弹簧垫圈' },
@@ -266,6 +376,7 @@ const PartsManagement: React.FC = () => {
     const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
     const [isAdding, setIsAdding] = useState(false);
     const [expanded, setExpanded] = useState(false);
+    const [sortParams, setSortParams] = useState<{ field?: string; order?: string }>({});
     const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
         partNo: 120,
         partName: 140,
@@ -277,6 +388,35 @@ const PartsManagement: React.FC = () => {
         remark: 150,
         operation: 120,
     });
+
+    // 列可见性状态（隐藏的列的 dataIndex 数组）
+    const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
+    // 冻结列状态（冻结的列的 dataIndex 数组）
+    const [frozenColumns, setFrozenColumns] = useState<string[]>([]);
+
+    // 切换列可见性
+    const toggleColumnVisibility = useCallback((colDataIndex: string) => {
+        setHiddenColumns(prev => {
+            if (prev.includes(colDataIndex)) {
+                return prev.filter(c => c !== colDataIndex);
+            } else {
+                return [...prev, colDataIndex];
+            }
+        });
+    }, []);
+
+    // 冻结列
+    const freezeColumn = useCallback((colDataIndex: string) => {
+        setFrozenColumns(prev => {
+            if (prev.includes(colDataIndex)) return prev;
+            return [...prev, colDataIndex];
+        });
+    }, []);
+
+    // 解冻列
+    const unfreezeColumn = useCallback((colDataIndex: string) => {
+        setFrozenColumns(prev => prev.filter(c => c !== colDataIndex));
+    }, []);
 
     // 尺寸弹框状态
     const [sizeModalVisible, setSizeModalVisible] = useState(false);
@@ -300,6 +440,28 @@ const PartsManagement: React.FC = () => {
 
     // 表格容器 ref，用于获取表格位置和高度
     const tableContainerRef = useRef<HTMLDivElement | null>(null);
+    const [tableScrollY, setTableScrollY] = useState<number>(400);
+
+    // 动态计算表格高度
+    useEffect(() => {
+        if (!tableContainerRef.current) return;
+        const resizeObserver = new ResizeObserver((entries) => {
+            for (let entry of entries) {
+                // addButton: 32px + 12px = 44px
+                // padding/margin: ~32px
+                // pagination: ~64px (24px height + 16px margin + buffer)
+                // table header: ~39px
+                // table outer border: ~2px
+                // target roughly height - 150px
+                const targetY = entry.contentRect.height - 150;
+                requestAnimationFrame(() => {
+                    setTableScrollY(Math.max(200, targetY));
+                });
+            }
+        });
+        resizeObserver.observe(tableContainerRef.current);
+        return () => resizeObserver.disconnect();
+    }, []);
 
     // 列宽拖动状态
     const resizingRef = useRef<{
@@ -442,7 +604,13 @@ const PartsManagement: React.FC = () => {
     // ResizeContext 值
     const resizeContextValue = React.useMemo(() => ({
         startResize,
-    }), [startResize]);
+        allColumns: ALL_COLUMN_DEFS,
+        hiddenColumns,
+        frozenColumns,
+        toggleColumnVisibility,
+        freezeColumn,
+        unfreezeColumn,
+    }), [startResize, hiddenColumns, frozenColumns, toggleColumnVisibility, freezeColumn, unfreezeColumn]);
 
     // 加载数据
     const fetchData = async (params: any = {}) => {
@@ -451,6 +619,8 @@ const PartsManagement: React.FC = () => {
             const res = await partsService.getList({
                 page: pagination.current,
                 pageSize: pagination.pageSize,
+                sortField: sortParams.field,
+                sortOrder: sortParams.order,
                 ...params,
             });
             if (res.code === 200) {
@@ -476,8 +646,9 @@ const PartsManagement: React.FC = () => {
     // 重置
     const handleReset = () => {
         searchForm.resetFields();
+        setSortParams({});
         setPagination(prev => ({ ...prev, current: 1 }));
-        fetchData({ page: 1 });
+        fetchData({ page: 1, sortField: undefined, sortOrder: undefined });
     };
 
     // 编辑
@@ -563,7 +734,17 @@ const PartsManagement: React.FC = () => {
     };
 
     // 分页变化
-    const handleTableChange = (paginationConfig: any) => {
+    const handleTableChange = (paginationConfig: any, _filters: any, sorter: any) => {
+        const newSortParams = {
+            field: Array.isArray(sorter) ? sorter[0].field : sorter.field,
+            order: Array.isArray(sorter) ? sorter[0].order : sorter.order,
+        };
+        // 如果 order 为空，说明取消了排序
+        if (!newSortParams.order) {
+            newSortParams.field = undefined;
+        }
+        setSortParams(newSortParams);
+
         setPagination({
             current: paginationConfig.current,
             pageSize: paginationConfig.pageSize,
@@ -572,6 +753,8 @@ const PartsManagement: React.FC = () => {
         fetchData({
             page: paginationConfig.current,
             pageSize: paginationConfig.pageSize,
+            sortField: newSortParams.field,
+            sortOrder: newSortParams.order,
             ...searchForm.getFieldsValue(),
         });
     };
@@ -595,6 +778,8 @@ const PartsManagement: React.FC = () => {
                 title: '配件编号',
                 dataIndex: 'partNo',
                 width: columnWidths.partNo,
+                sorter: true,
+                fixed: 'start',
                 render: (text: string) => renderTooltip(text),
                 onCell: (record) => ({
                     record,
@@ -608,6 +793,7 @@ const PartsManagement: React.FC = () => {
                 title: '配件名称',
                 dataIndex: 'partName',
                 width: columnWidths.partName,
+                sorter: true,
                 render: (text: string) => renderTooltip(text),
                 onCell: (record) => ({
                     record,
@@ -621,6 +807,7 @@ const PartsManagement: React.FC = () => {
                 title: '英文名称',
                 dataIndex: 'partNameEn',
                 width: columnWidths.partNameEn,
+                sorter: true,
                 render: (text: string) => renderTooltip(text),
                 onCell: (record) => ({
                     record,
@@ -634,6 +821,7 @@ const PartsManagement: React.FC = () => {
                 title: '尺寸',
                 dataIndex: 'size',
                 width: columnWidths.size,
+                sorter: true,
                 render: (text: string) => renderTooltip(text),
                 onCell: (record) => ({
                     record,
@@ -647,6 +835,7 @@ const PartsManagement: React.FC = () => {
                 title: '科组',
                 dataIndex: 'section',
                 width: columnWidths.section,
+                sorter: true,
                 render: (section: string) => {
                     const option = sectionOptions.find(opt => opt.value === section);
                     const text = option ? option.label : section;
@@ -666,6 +855,7 @@ const PartsManagement: React.FC = () => {
                 dataIndex: 'quantity',
                 width: columnWidths.quantity,
                 align: 'center',
+                sorter: true,
                 render: (val: number) => renderTooltip(val),
                 onCell: (record) => ({
                     record,
@@ -680,6 +870,7 @@ const PartsManagement: React.FC = () => {
                 dataIndex: 'status',
                 width: columnWidths.status,
                 align: 'center',
+                sorter: true,
                 render: (status: string) => {
                     const text = status === 'active' ? '启用' : '停用';
                     const tag = (
@@ -716,7 +907,6 @@ const PartsManagement: React.FC = () => {
                 dataIndex: 'operation',
                 width: columnWidths.operation,
                 align: 'center',
-                fixed: 'right',
                 render: (_: any, record: Part) => {
                     const editable = isEditing(record);
                     return editable ? (
@@ -779,21 +969,49 @@ const PartsManagement: React.FC = () => {
     const columns = getColumns();
 
     // 合并列配置，添加可编辑单元格和可调整列宽
-    const mergedColumns = columns.map((col) => {
-        const dataIndex = (col as any).dataIndex;
-        return {
-            ...col,
-            onHeaderCell: (column: any) => ({
-                width: column.width,
-                dataIndex: dataIndex, // 传递 dataIndex 给表头组件
-            }),
-            ...('onCell' in col ? {
-                onCell: (record: Part) => ({
-                    ...((col as any).onCell?.(record) || {}),
+    const mergedColumns = columns
+        // 过滤掉隐藏的列
+        .filter((col) => {
+            const dataIndex = (col as any).dataIndex;
+            return !hiddenColumns.includes(dataIndex);
+        })
+        .map((col) => {
+            const dataIndex = (col as any).dataIndex;
+            // 判断是否冻结列（操作列保持原有 fixed: 'end'）
+            const isFrozen = frozenColumns.includes(dataIndex);
+            const fixedProp = dataIndex === 'operation'
+                ? { fixed: 'end' as const }
+                : isFrozen
+                    ? { fixed: 'start' as const }
+                    : {};
+
+            return {
+                ...col,
+                ...fixedProp,
+                sortOrder: sortParams.field === dataIndex ? sortParams.order : null,
+                onHeaderCell: (column: any) => ({
+                    width: column.width,
+                    dataIndex: dataIndex, // 传递 dataIndex 给表头组件
                 }),
-            } : {}),
-        };
-    });
+                ...('onCell' in col ? {
+                    onCell: (record: Part) => ({
+                        ...((col as any).onCell?.(record) || {}),
+                    }),
+                } : {}),
+            };
+        })
+        // 将冻结列排到前面，操作列始终在最后
+        .sort((a: any, b: any) => {
+            const aFixed = a.fixed;
+            const bFixed = b.fixed;
+            // fixed: 'end' 列（操作列）始终在最后
+            if (aFixed === 'end' && bFixed !== 'end') return 1;
+            if (aFixed !== 'end' && bFixed === 'end') return -1;
+            // fixed: 'start' 列（冻结列）排在前面
+            if (aFixed === 'start' && bFixed !== 'start') return -1;
+            if (aFixed !== 'start' && bFixed === 'start') return 1;
+            return 0;
+        });
 
     // 查询字段配置
     const searchFields = [
@@ -811,9 +1029,67 @@ const PartsManagement: React.FC = () => {
     const hasMoreFields = searchFields.length > defaultVisibleCount;
 
     return (
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+            <style>{`
+                /* 默认隐藏排序图标 */
+                .full-height-table .ant-table-column-sorter {
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                }
+                /* 当列正在排序，或者鼠标悬停在表头时显示图标 */
+                .full-height-table .ant-table-column-sort .ant-table-column-sorter,
+                .full-height-table .ant-table-column-has-sorters:hover .ant-table-column-sorter {
+                    opacity: 1;
+                }
+
+                /* 列头 flex 布局容器 */
+                .column-header-wrapper {
+                    display: flex;
+                    align-items: center;
+                    width: 100%;
+                }
+                .column-header-dropdown-wrapper {
+                    display: inline-flex;
+                    align-items: center;
+                    flex-shrink: 0;
+                }
+                .column-header-content {
+                    flex: 1;
+                    overflow: hidden;
+                    min-width: 0;
+                }
+
+                /* 列头下拉箭头 - 默认隐藏，排在排序图标后面 */
+                .column-header-dropdown-trigger {
+                    display: inline-flex;
+                    align-items: center;
+                    flex-shrink: 0;
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                    cursor: pointer;
+                    font-size: 10px;
+                    color: #8c8c8c;
+                    padding: 2px 4px;
+                    margin-left: 2px;
+                    line-height: 1;
+                    border-radius: 2px;
+                }
+                .column-header-dropdown-trigger:hover {
+                    color: #1890ff;
+                    background: rgba(24, 144, 255, 0.06);
+                }
+                /* 鼠标悬停表头时显示下拉箭头 */
+                .full-height-table th:hover .column-header-dropdown-trigger {
+                    opacity: 1;
+                }
+                /* 下拉菜单打开时也保持箭头可见 */
+                .column-header-dropdown-trigger.ant-dropdown-open,
+                .ant-dropdown-open .column-header-dropdown-trigger {
+                    opacity: 1;
+                }
+            `}</style>
             {/* 搜索区域 */}
-            <div style={{ padding: 16, background: '#fff', marginBottom: 12, borderRadius: 6 }}>
+            <div style={{ padding: 16, background: '#fff', marginBottom: 12, borderRadius: 6, flexShrink: 0 }}>
                 <Form form={searchForm} onKeyPress={(e) => e.key === 'Enter' && handleSearch()}>
                     <Row gutter={[16, 8]}>
                         {visibleFields.map((field) => (
@@ -869,7 +1145,7 @@ const PartsManagement: React.FC = () => {
             />
 
             {/* 表格区域 */}
-            <div ref={tableContainerRef} style={{ padding: 16, background: '#fff', borderRadius: 6 }}>
+            <div ref={tableContainerRef} style={{ padding: 16, background: '#fff', borderRadius: 6, flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ marginBottom: 12 }}>
                     <Button
                         type="primary"
@@ -884,6 +1160,7 @@ const PartsManagement: React.FC = () => {
                 <ResizeContext.Provider value={resizeContextValue}>
                     <Form form={form} component={false}>
                         <Table
+                            className="full-height-table"
                             components={{
                                 header: {
                                     cell: ResizableTitle,
@@ -909,7 +1186,7 @@ const PartsManagement: React.FC = () => {
                             }}
                             loading={loading}
                             onChange={handleTableChange}
-                            scroll={{ x: 1200 }}
+                            scroll={{ x: 1200, y: tableScrollY }}
                             size="small"
                         />
                     </Form>

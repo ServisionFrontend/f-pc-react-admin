@@ -91,7 +91,7 @@ const MainLayout = () => {
         className="premium-sider"
       >
         <div className="logo-container">
-          <div className="logo-text">{collapsed ? 'GA' : 'GEMINI ADMIN'}</div>
+          <div className="logo-text">{collapsed ? 'EPIS' : 'EPIS'}</div>
         </div>
         <Menu
           theme="light"
@@ -133,6 +133,8 @@ const MainLayout = () => {
             padding: 0,
             minHeight: 280,
             overflow: 'initial',
+            display: 'flex',
+            flexDirection: 'column'
           }}
         >
           <Outlet />
