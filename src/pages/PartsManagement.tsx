@@ -129,7 +129,7 @@ const ResizableTitle = (props: any) => {
         dragGhost.style.whiteSpace = 'nowrap';
         // 绿色圆形对勾
         dragGhost.innerHTML = `
-            <div style="width: 14px; height: 14px; border-radius: 50%; background-color: #8cc63f; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">
+            <div style="width: 14px; height: 14px; border-radius: 50%; background-color: #6E3DEB; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">
                 ✓
             </div>
             <span>${titleText}</span>
@@ -202,6 +202,16 @@ const ResizableTitle = (props: any) => {
             onDragLeave={draggable ? handleDragLeave : undefined}
             onDrop={draggable ? handleDrop : undefined}
         >
+            <div className="drag-indicator drag-indicator-left">
+                <ArrowDownOutlined className="drag-indicator-icon" />
+
+                <ArrowUpOutlined className="drag-indicator-icon" />
+            </div>
+            <div className="drag-indicator drag-indicator-right">
+                <ArrowDownOutlined className="drag-indicator-icon" />
+
+                <ArrowUpOutlined className="drag-indicator-icon" />
+            </div>
             <div className="column-header-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 {/* 排序点击区域 */}
                 <div
@@ -1179,28 +1189,44 @@ const PartsManagement: React.FC = () => {
                     opacity: 0.5;
                 }
 
-                /* 拖放指示线 */
-                th.drag-over-left::after {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    bottom: 0;
-                    left: 0;
-                    width: 2px;
-                    background-color: #8cc63f; /* 跟图上一样的浅绿色 */
-                    z-index: 9999;
-                    pointer-events: none;
+                /* 拖放指示线区域 */
+                th.drag-over-left,
+                th.drag-over-right {
+                    overflow: visible !important;
                 }
-                th.drag-over-right::after {
-                    content: '';
+                .drag-indicator {
                     position: absolute;
-                    top: 0;
-                    bottom: 0;
-                    right: 0;
-                    width: 2px;
-                    background-color: #8cc63f; /* 跟图上一样的浅绿色 */
+                    top: -4px;
+                    bottom: -4px;
+                    width: 12px;
                     z-index: 9999;
                     pointer-events: none;
+                    display: none;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: space-between;
+                }
+                .drag-indicator-left {
+                    left: -6px;
+                }
+                .drag-indicator-right {
+                    right: -6px;
+                }
+                .drag-indicator-line {
+                    flex: 1;
+                    width: 2px;
+                    background-color: #6E3DEB; /* 跟图上一样的浅绿色 */
+                }
+                .drag-indicator-icon {
+                    color: #6E3DEB;
+                    font-size: 14px;
+                    line-height: 1;
+                }
+                th.drag-over-left .drag-indicator-left {
+                    display: flex;
+                }
+                th.drag-over-right .drag-indicator-right {
+                    display: flex;
                 }
                 body.is-dragging-column .full-height-table th * {
                     pointer-events: none !important;
