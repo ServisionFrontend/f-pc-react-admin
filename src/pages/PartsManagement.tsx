@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Table, Button, Space, Input, InputNumber, Select, Tag, Popconfirm, Form, message, Row, Col, Tooltip, Modal, Dropdown, Checkbox } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined, SearchOutlined, ReloadOutlined, DownOutlined, UpOutlined, LockOutlined, UnlockOutlined, AppstoreOutlined, CaretDownOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SaveOutlined, CloseOutlined, SearchOutlined, ReloadOutlined, DownOutlined, UpOutlined, LockOutlined, UnlockOutlined, AppstoreOutlined, CaretDownOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import partsService, { Part } from '../services/partsService';
 
@@ -25,6 +25,7 @@ interface ResizeContextType {
     toggleColumnVisibility: (dataIndex: string) => void;
     freezeColumn: (dataIndex: string) => void;
     unfreezeColumn: (dataIndex: string) => void;
+    moveColumn: (dragKey: string, dropKey: string, position: 'left' | 'right') => void;
 }
 const ResizeContext = React.createContext<ResizeContextType | null>(null);
 
@@ -97,14 +98,116 @@ const ResizableTitle = (props: any) => {
         },
     ] : [];
 
+    const isOperation = dataIndex === 'operation';
+    const draggable = !isFrozen && !isOperation;
+
+    const handleDragStart = (e: React.DragEvent<HTMLElement>) => {
+        if (!draggable) {
+            e.preventDefault();
+            return;
+        }
+        e.dataTransfer.setData('sourceDataIndex', dataIndex);
+        e.dataTransfer.effectAllowed = 'move';
+
+        // 创建类似 ExtJS 的自定义拖动镜像
+        const titleText = resizeContext?.allColumns.find(c => c.dataIndex === dataIndex)?.title || '列';
+        const dragGhost = document.createElement('div');
+        dragGhost.id = 'custom-drag-ghost';
+        dragGhost.style.position = 'absolute';
+        dragGhost.style.top = '-1000px';
+        dragGhost.style.left = '-1000px';
+        dragGhost.style.backgroundColor = '#fff';
+        dragGhost.style.border = '1px solid #c0c0c0';
+        dragGhost.style.padding = '4px 8px';
+        dragGhost.style.boxShadow = '1px 1px 3px rgba(0,0,0,0.1)';
+        dragGhost.style.display = 'inline-flex';
+        dragGhost.style.alignItems = 'center';
+        dragGhost.style.gap = '6px';
+        dragGhost.style.fontSize = '12px';
+        dragGhost.style.color = '#333';
+        dragGhost.style.zIndex = '-9999';
+        dragGhost.style.whiteSpace = 'nowrap';
+        // 绿色圆形对勾
+        dragGhost.innerHTML = `
+            <div style="width: 14px; height: 14px; border-radius: 50%; background-color: #8cc63f; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">
+                ✓
+            </div>
+            <span>${titleText}</span>
+        `;
+        document.body.appendChild(dragGhost);
+
+        e.dataTransfer.setDragImage(dragGhost, 15, 15);
+
+        setTimeout(() => {
+            if (e.target instanceof HTMLElement) {
+                e.target.classList.add('dragging-column');
+            }
+            document.body.classList.add('is-dragging-column');
+            if (document.body.contains(dragGhost)) {
+                document.body.removeChild(dragGhost);
+            }
+        }, 0);
+    };
+
+    const handleDragEnd = (e: React.DragEvent<HTMLElement>) => {
+        if (e.target instanceof HTMLElement) {
+            e.target.classList.remove('dragging-column');
+        }
+        document.body.classList.remove('is-dragging-column');
+    };
+
+    const handleDragOver = (e: React.DragEvent<HTMLElement>) => {
+        if (!draggable) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+
+        const th = e.currentTarget;
+        const rect = th.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        if (x < rect.width / 2) {
+            th.classList.remove('drag-over-right');
+            th.classList.add('drag-over-left');
+        } else {
+            th.classList.remove('drag-over-left');
+            th.classList.add('drag-over-right');
+        }
+    };
+
+    const handleDragLeave = (e: React.DragEvent<HTMLElement>) => {
+        const th = e.currentTarget;
+        th.classList.remove('drag-over-left', 'drag-over-right');
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLElement>) => {
+        e.preventDefault();
+        const th = e.currentTarget;
+        const isLeft = th.classList.contains('drag-over-left');
+        th.classList.remove('drag-over-left', 'drag-over-right');
+
+        if (!draggable) return;
+        const sourceDataIndex = e.dataTransfer.getData('sourceDataIndex');
+        if (sourceDataIndex && sourceDataIndex !== dataIndex) {
+            resizeContext?.moveColumn(sourceDataIndex, dataIndex, isLeft ? 'left' : 'right');
+        }
+    };
+
     return (
-        <th {...restProps} style={{ ...(restProps.style || {}) }}>
+        <th
+            {...restProps}
+            style={{ ...(restProps.style || {}) }}
+            draggable={draggable}
+            onDragStart={draggable ? handleDragStart : undefined}
+            onDragEnd={draggable ? handleDragEnd : undefined}
+            onDragOver={draggable ? handleDragOver : undefined}
+            onDragLeave={draggable ? handleDragLeave : undefined}
+            onDrop={draggable ? handleDrop : undefined}
+        >
             <div className="column-header-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 {/* 排序点击区域 */}
                 <div
                     className="column-header-content"
                     onClick={sortOnClick}
-                    style={{ flex: 1, minWidth: 0 }}
+                    style={{ flex: 1, minWidth: 0, marginRight: '25px' }}
                 >
                     {restProps.children}
                 </div>
@@ -119,7 +222,7 @@ const ResizableTitle = (props: any) => {
                         onMouseDown={(e) => e.stopPropagation()}
                         onMouseUp={(e) => e.stopPropagation()}
                         // 【关键】增加 z-index，防止被 Antd 表格列头自带的 ::before 热区遮挡劫持点击！
-                        style={{ display: 'inline-flex', alignItems: 'center', position: 'relative', zIndex: 10 }}
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'absolute', right: 0, top: 0, zIndex: 10, width: '25px', height: '100%' }}
                     >
                         <Dropdown
                             menu={{ items: dropdownMenuItems, onClick: handleMenuClick }}
@@ -128,8 +231,9 @@ const ResizableTitle = (props: any) => {
                         >
                             <div
                                 className="column-header-dropdown-wrapper"
-                                style={{ padding: '0 4px', height: '100%', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}
+                                style={{ width: '100%', height: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}
                             >
+                                <span className="column-header-divider" />
                                 <span className="column-header-dropdown-trigger">
                                     <CaretDownOutlined />
                                 </span>
@@ -389,6 +493,10 @@ const PartsManagement: React.FC = () => {
         operation: 120,
     });
 
+    const [columnOrder, setColumnOrder] = useState<string[]>([
+        'partNo', 'partName', 'partNameEn', 'size', 'section', 'quantity', 'status', 'remark', 'operation'
+    ]);
+
     // 列可见性状态（隐藏的列的 dataIndex 数组）
     const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
     // 冻结列状态（冻结的列的 dataIndex 数组）
@@ -416,6 +524,25 @@ const PartsManagement: React.FC = () => {
     // 解冻列
     const unfreezeColumn = useCallback((colDataIndex: string) => {
         setFrozenColumns(prev => prev.filter(c => c !== colDataIndex));
+    }, []);
+
+    // 移动列顺序
+    const moveColumn = useCallback((dragKey: string, dropKey: string, position: 'left' | 'right') => {
+        setColumnOrder(prev => {
+            const dragIndex = prev.indexOf(dragKey);
+            const dropIndex = prev.indexOf(dropKey);
+            if (dragIndex === -1 || dropIndex === -1 || dragIndex === dropIndex) return prev;
+
+            const newOrder = [...prev];
+            const [draggedItem] = newOrder.splice(dragIndex, 1);
+
+            let targetIndex = newOrder.indexOf(dropKey);
+            if (position === 'right') {
+                targetIndex += 1;
+            }
+            newOrder.splice(targetIndex, 0, draggedItem);
+            return newOrder;
+        });
     }, []);
 
     // 尺寸弹框状态
@@ -503,7 +630,7 @@ const PartsManagement: React.FC = () => {
             height: ${height}px;
             width: 2px;
             background: var(--primary-color, #4f46e5);
-            z-index: 1;
+            z-index: 99999;
             pointer-events: none;
             left: ${startX}px;
         `;
@@ -610,7 +737,8 @@ const PartsManagement: React.FC = () => {
         toggleColumnVisibility,
         freezeColumn,
         unfreezeColumn,
-    }), [startResize, hiddenColumns, frozenColumns, toggleColumnVisibility, freezeColumn, unfreezeColumn]);
+        moveColumn,
+    }), [startResize, hiddenColumns, frozenColumns, toggleColumnVisibility, freezeColumn, unfreezeColumn, moveColumn]);
 
     // 加载数据
     const fetchData = async (params: any = {}) => {
@@ -779,7 +907,6 @@ const PartsManagement: React.FC = () => {
                 dataIndex: 'partNo',
                 width: columnWidths.partNo,
                 sorter: true,
-                fixed: 'start',
                 render: (text: string) => renderTooltip(text),
                 onCell: (record) => ({
                     record,
@@ -896,7 +1023,7 @@ const PartsManagement: React.FC = () => {
                 render: (text: string) => renderTooltip(text),
                 onCell: (record) => ({
                     record,
-                    inputType: 'text',
+                    inputType: 'textarea',
                     dataIndex: 'remark',
                     title: '备注',
                     editing: isEditing(record),
@@ -975,6 +1102,12 @@ const PartsManagement: React.FC = () => {
             const dataIndex = (col as any).dataIndex;
             return !hiddenColumns.includes(dataIndex);
         })
+        // 按 columnOrder 预排序
+        .sort((a: any, b: any) => {
+            const aIndex = columnOrder.indexOf(a.dataIndex);
+            const bIndex = columnOrder.indexOf(b.dataIndex);
+            return aIndex - bIndex;
+        })
         .map((col) => {
             const dataIndex = (col as any).dataIndex;
             // 判断是否冻结列（操作列保持原有 fixed: 'end'）
@@ -1036,9 +1169,58 @@ const PartsManagement: React.FC = () => {
                     opacity: 0;
                     transition: opacity 0.3s;
                 }
-                /* 当列正在排序，或者鼠标悬停在表头时显示图标 */
-                .full-height-table .ant-table-column-sort .ant-table-column-sorter,
-                .full-height-table .ant-table-column-has-sorters:hover .ant-table-column-sorter {
+                /* 当列正在排序时显示图标 */
+                .full-height-table .ant-table-column-sort .ant-table-column-sorter {
+                    opacity: 1;
+                }
+
+                /* 拖动列时的透明度变化 */
+                .dragging-column {
+                    opacity: 0.5;
+                }
+
+                /* 拖放指示线 */
+                th.drag-over-left::after {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    bottom: 0;
+                    left: 0;
+                    width: 2px;
+                    background-color: #8cc63f; /* 跟图上一样的浅绿色 */
+                    z-index: 9999;
+                    pointer-events: none;
+                }
+                th.drag-over-right::after {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    bottom: 0;
+                    right: 0;
+                    width: 2px;
+                    background-color: #8cc63f; /* 跟图上一样的浅绿色 */
+                    z-index: 9999;
+                    pointer-events: none;
+                }
+                body.is-dragging-column .full-height-table th * {
+                    pointer-events: none !important;
+                }
+
+                /* 分隔线样式 */
+                .column-header-divider {
+                    position: absolute;
+                    left: 0;
+                    /* 往上和往下延伸以穿透表头的 padding (antd 默认 small: 8px, 此处设大一些确保顶到边框，父元素 th 若为 relative 会限高，绝对定位参照 th 的边框) */
+                    top: 0px; 
+                    bottom: 0px;
+                    width: 0.6667px;
+                    background-color: rgb(229, 231, 235);
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                    pointer-events: none;
+                }
+                .full-height-table th:hover .column-header-divider,
+                .column-header-dropdown-wrapper.ant-dropdown-open .column-header-divider {
                     opacity: 1;
                 }
 
@@ -1070,7 +1252,6 @@ const PartsManagement: React.FC = () => {
                     font-size: 10px;
                     color: #8c8c8c;
                     padding: 2px 4px;
-                    margin-left: 2px;
                     line-height: 1;
                     border-radius: 2px;
                 }
@@ -1084,8 +1265,15 @@ const PartsManagement: React.FC = () => {
                 }
                 /* 下拉菜单打开时也保持箭头可见 */
                 .column-header-dropdown-trigger.ant-dropdown-open,
-                .ant-dropdown-open .column-header-dropdown-trigger {
+                .ant-dropdown-open .column-header-dropdown-trigger,
+                .column-header-dropdown-wrapper.ant-dropdown-open .column-header-dropdown-trigger {
                     opacity: 1;
+                }
+                
+                /* 使 th 为分隔线的绝对定位提供参照，并且裁切超出的分隔线 */
+                .full-height-table th.ant-table-cell {
+                    position: relative;
+                    overflow: hidden;
                 }
             `}</style>
             {/* 搜索区域 */}
@@ -1175,6 +1363,7 @@ const PartsManagement: React.FC = () => {
                                 },
                             }}
                             bordered
+                            showSorterTooltip={false}
                             dataSource={data}
                             columns={mergedColumns as any}
                             rowClassName="editable-row"
