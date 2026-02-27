@@ -27,9 +27,5 @@ interface SvCrudContextType {
 export const SvCrudContext = createContext<SvCrudContextType | null>(null);
 
 export const useSvCrudContext = () => {
-    const context = useContext(SvCrudContext);
-    if (!context) {
-        throw new Error('useSvCrudContext must be used within a SvCrudProvider');
-    }
-    return context;
+    return useContext(SvCrudContext);
 };
