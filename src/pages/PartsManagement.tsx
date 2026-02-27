@@ -267,6 +267,18 @@ const sectionOptions = [
   { label: "内饰", value: "interior" },
 ];
 
+const levelOptions = [
+  { label: "A级", value: "A" },
+  { label: "B级", value: "B" },
+  { label: "C级", value: "C" },
+  { label: "S级", value: "S" },
+];
+
+const fragileOptions = [
+  { label: "是(Y)", value: "Y" },
+  { label: "否(N)", value: "N" },
+];
+
 const PartsManagement: React.FC = () => {
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
@@ -447,6 +459,26 @@ const PartsManagement: React.FC = () => {
       quantity: 0,
       status: "active",
       remark: "",
+      manufacturer: "",
+      material: "",
+      weight: 0,
+      price: 0,
+      supplier: "",
+      level: "A",
+      color: "",
+      unit: "个",
+      productionDate: "",
+      validityPeriod: 12,
+      version: "V1.0",
+      safetyStock: 0,
+      maxStock: 0,
+      location: "",
+      inspector: "",
+      certNo: "",
+      drawingNo: "",
+      batchNo: "",
+      isFragile: "N",
+      compatibility: "",
     };
     setData([newRecord, ...data]);
     form.setFieldsValue(newRecord);
@@ -625,6 +657,172 @@ const PartsManagement: React.FC = () => {
           title: "备注",
           editing: isEditing(record),
         }),
+      },
+      {
+        title: "制造商",
+        dataIndex: "manufacturer",
+        width: 120,
+        sorter: true,
+        render: (text: string) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "text", dataIndex: "manufacturer", title: "制造商", editing: isEditing(record) }),
+      },
+      {
+        title: "材质",
+        dataIndex: "material",
+        width: 100,
+        sorter: true,
+        render: (text: string) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "text", dataIndex: "material", title: "材质", editing: isEditing(record) }),
+      },
+      {
+        title: "重量(g)",
+        dataIndex: "weight",
+        width: 100,
+        sorter: true,
+        render: (text: number) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "number", dataIndex: "weight", title: "重量(g)", editing: isEditing(record) }),
+      },
+      {
+        title: "单价(元)",
+        dataIndex: "price",
+        width: 100,
+        sorter: true,
+        render: (text: number) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "number", dataIndex: "price", title: "单价(元)", editing: isEditing(record) }),
+      },
+      {
+        title: "供应商",
+        dataIndex: "supplier",
+        width: 120,
+        sorter: true,
+        render: (text: string) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "text", dataIndex: "supplier", title: "供应商", editing: isEditing(record) }),
+      },
+      {
+        title: "等级",
+        dataIndex: "level",
+        width: 80,
+        sorter: true,
+        render: (level: string) => {
+          const option = levelOptions.find((opt) => opt.value === level);
+          return renderTooltip(option ? option.label : level);
+        },
+        onCell: (record) => ({ record, inputType: "select", dataIndex: "level", title: "等级", editing: isEditing(record), options: levelOptions }),
+      },
+      {
+        title: "颜色",
+        dataIndex: "color",
+        width: 80,
+        sorter: true,
+        render: (text: string) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "text", dataIndex: "color", title: "颜色", editing: isEditing(record) }),
+      },
+      {
+        title: "单位",
+        dataIndex: "unit",
+        width: 80,
+        sorter: true,
+        render: (text: string) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "text", dataIndex: "unit", title: "单位", editing: isEditing(record) }),
+      },
+      {
+        title: "生产日期",
+        dataIndex: "productionDate",
+        width: 120,
+        sorter: true,
+        render: (text: string) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "text", dataIndex: "productionDate", title: "生产日期", editing: isEditing(record) }),
+      },
+      {
+        title: "有效期(月)",
+        dataIndex: "validityPeriod",
+        width: 100,
+        sorter: true,
+        render: (text: number) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "number", dataIndex: "validityPeriod", title: "有效期(月)", editing: isEditing(record) }),
+      },
+      {
+        title: "版本",
+        dataIndex: "version",
+        width: 100,
+        sorter: true,
+        render: (text: string) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "text", dataIndex: "version", title: "版本", editing: isEditing(record) }),
+      },
+      {
+        title: "安全库存",
+        dataIndex: "safetyStock",
+        width: 100,
+        sorter: true,
+        render: (text: number) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "number", dataIndex: "safetyStock", title: "安全库存", editing: isEditing(record) }),
+      },
+      {
+        title: "最大库存",
+        dataIndex: "maxStock",
+        width: 100,
+        sorter: true,
+        render: (text: number) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "number", dataIndex: "maxStock", title: "最大库存", editing: isEditing(record) }),
+      },
+      {
+        title: "存放位置",
+        dataIndex: "location",
+        width: 120,
+        sorter: true,
+        render: (text: string) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "text", dataIndex: "location", title: "存放位置", editing: isEditing(record) }),
+      },
+      {
+        title: "检验员",
+        dataIndex: "inspector",
+        width: 100,
+        sorter: true,
+        render: (text: string) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "text", dataIndex: "inspector", title: "检验员", editing: isEditing(record) }),
+      },
+      {
+        title: "合格证号",
+        dataIndex: "certNo",
+        width: 140,
+        sorter: true,
+        render: (text: string) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "text", dataIndex: "certNo", title: "合格证号", editing: isEditing(record) }),
+      },
+      {
+        title: "图纸号",
+        dataIndex: "drawingNo",
+        width: 140,
+        sorter: true,
+        render: (text: string) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "text", dataIndex: "drawingNo", title: "图纸号", editing: isEditing(record) }),
+      },
+      {
+        title: "批次号",
+        dataIndex: "batchNo",
+        width: 140,
+        sorter: true,
+        render: (text: string) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "text", dataIndex: "batchNo", title: "批次号", editing: isEditing(record) }),
+      },
+      {
+        title: "是否易碎",
+        dataIndex: "isFragile",
+        width: 100,
+        sorter: true,
+        render: (val: string) => {
+          const option = fragileOptions.find((opt) => opt.value === val);
+          return renderTooltip(option ? option.label : val);
+        },
+        onCell: (record) => ({ record, inputType: "select", dataIndex: "isFragile", title: "是否易碎", editing: isEditing(record), options: fragileOptions }),
+      },
+      {
+        title: "适用车型",
+        dataIndex: "compatibility",
+        width: 120,
+        sorter: true,
+        render: (text: string) => renderTooltip(text),
+        onCell: (record) => ({ record, inputType: "text", dataIndex: "compatibility", title: "适用车型", editing: isEditing(record) }),
       },
       {
         title: "操作",

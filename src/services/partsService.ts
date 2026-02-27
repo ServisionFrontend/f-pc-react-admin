@@ -11,10 +11,30 @@ export interface Part {
     quantity: number;      // 用量
     status: string;        // 状态
     remark: string;        // 备注
+    manufacturer: string;  // 制造商
+    material: string;      // 材质
+    weight: number;        // 重量(g)
+    price: number;         // 单价(元)
+    supplier: string;      // 供应商
+    level: string;         // 等级 (A/B/C/S)
+    color: string;         // 颜色
+    unit: string;          // 单位
+    productionDate: string;// 生产日期
+    validityPeriod: number;// 有效期(月)
+    version: string;       // 版本
+    safetyStock: number;   // 安全库存
+    maxStock: number;      // 最大库存
+    location: string;      // 存放位置
+    inspector: string;     // 检验员
+    certNo: string;        // 合格证号
+    drawingNo: string;     // 图纸号
+    batchNo: string;       // 批次号
+    isFragile: string;     // 是否易碎(Y/N)
+    compatibility: string; // 适用车型
 }
 
-// 模拟数据
-let mockList: Part[] = [
+// 基础数据
+const baseItems = [
     { key: '1', partNo: 'P001', partName: '螺丝M6x20', partNameEn: 'Screw M6x20', size: 'M6x20mm', section: 'door', quantity: 100, status: 'active', remark: '常用配件' },
     { key: '2', partNo: 'P002', partName: '垫片φ10', partNameEn: 'Washer φ10', size: 'φ10x2mm', section: 'door', quantity: 200, status: 'active', remark: '标准件' },
     { key: '3', partNo: 'P003', partName: '弹簧垫圈M8', partNameEn: 'Spring Washer M8', size: 'M8', section: 'chassis', quantity: 150, status: 'inactive', remark: '备用' },
@@ -46,6 +66,54 @@ let mockList: Part[] = [
     { key: '29', partNo: 'P029', partName: '遮阳板', partNameEn: 'Sun Visor', size: 'Grey', section: 'interior', quantity: 25, status: 'active', remark: '主驾侧' },
     { key: '30', partNo: 'P030', partName: '门锁电机', partNameEn: 'Door Lock Motor', size: 'Standard', section: 'door', quantity: 22, status: 'active', remark: '中控锁' },
 ];
+
+const manufacturers = ['一汽', '上汽', '广汽', '丰田', '本田', '大众', '比亚迪', '长安'];
+const materials = ['钢', '铝合金', '塑料', '橡胶', '尼龙', '铜', '铁', '碳纤维'];
+const levels = ['A', 'B', 'C', 'S'];
+const units = ['个', '件', '套', '箱', '米', '千克', '升'];
+const colors = ['黑', '白', '银', '灰', '红', '蓝', '透明', '黄'];
+const vehicles = ['轿车', 'SUV', 'MPV', '卡车', '跑车', '客车', '通用'];
+
+// 生成1000条模拟数据
+let mockList: Part[] = [];
+for (let i = 1; i <= 1000; i++) {
+    const isBase = i <= 30;
+    const base = isBase ? baseItems[i - 1] : {
+        key: String(i),
+        partNo: `P${String(i).padStart(3, '0')}`,
+        partName: `自动生成配件${i}`,
+        partNameEn: `Auto Part ${i}`,
+        size: `Size-${i}`,
+        section: ['door', 'chassis', 'engine', 'interior'][i % 4],
+        quantity: Math.floor(Math.random() * 1000),
+        status: i % 10 === 0 ? 'inactive' : 'active',
+        remark: '系统自动生成'
+    };
+
+    mockList.push({
+        ...base,
+        manufacturer: manufacturers[i % manufacturers.length],
+        material: materials[i % materials.length],
+        weight: Math.floor(Math.random() * 1000) + 10,
+        price: Number((Math.random() * 500 + 1).toFixed(2)),
+        supplier: `供应商${i % 50 + 1}`,
+        level: levels[i % levels.length],
+        color: colors[i % colors.length],
+        unit: units[i % units.length],
+        productionDate: `2023-${String((i % 12) + 1).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`,
+        validityPeriod: 12 + (i % 24),
+        version: `V1.${i % 5}`,
+        safetyStock: 50 + (i % 100),
+        maxStock: 500 + (i % 500),
+        location: `仓库${(i % 5) + 1}-货架${(i % 20) + 1}`,
+        inspector: `检验员${(i % 10) + 1}`,
+        certNo: `CERT-${20230000 + i}`,
+        drawingNo: `DWG-${1000 + i}`,
+        batchNo: `BATCH-${20230000 + i}`,
+        isFragile: i % 15 === 0 ? 'Y' : 'N',
+        compatibility: vehicles[i % vehicles.length]
+    });
+}
 
 // 模拟延迟
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

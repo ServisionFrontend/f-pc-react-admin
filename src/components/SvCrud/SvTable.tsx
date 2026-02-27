@@ -15,6 +15,7 @@ interface ResizeContextType {
     freezeColumn: (dataIndex: string) => void;
     unfreezeColumn: (dataIndex: string) => void;
     moveColumn: (dragKey: string, dropKey: string, position: "left" | "right") => void;
+    tableContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 const ResizeContext = React.createContext<ResizeContextType | null>(null);
 
@@ -53,6 +54,7 @@ const ResizableTitle = (props: any) => {
             key: "columns",
             label: "列",
             icon: <AppstoreOutlined />,
+            popupClassName: "sv-table-column-submenu",
             children: resizeContext.allColumns.map((col) => ({
                 key: `col-${col.dataIndex}`,
                 label: (
@@ -201,7 +203,16 @@ const ResizableTitle = (props: any) => {
                         onMouseUp={(e) => e.stopPropagation()}
                         style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", position: "absolute", right: 0, top: 0, zIndex: 10, width: "25px", height: "100%" }}
                     >
-                        <Dropdown menu={{ items: dropdownMenuItems, onClick: handleMenuClick }} trigger={["click"]} destroyPopupOnHide>
+                        <Dropdown
+                            menu={{
+                                items: dropdownMenuItems,
+                                onClick: handleMenuClick,
+                                className: "sv-table-header-dropdown-menu"
+                            }}
+                            trigger={["click"]}
+                            destroyPopupOnHide
+                            getPopupContainer={() => resizeContext?.tableContainerRef?.current || document.body}
+                        >
                             <div className="column-header-dropdown-wrapper" style={{ width: "100%", height: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}>
                                 <span className="column-header-divider" />
                                 <span className="column-header-dropdown-trigger">
@@ -430,7 +441,24 @@ const SvTable: React.FC<SvTableProps> = (props) => {
         freezeColumn,
         unfreezeColumn,
         moveColumn,
-    }), [startResize, allColumnsConfig, hiddenColumns, frozenColumns, toggleColumnVisibility, freezeColumn, unfreezeColumn, moveColumn]);
+        tableContainerRef,
+    }), [startResize, allColumnsConfig, hiddenColumns, frozenColumns, toggleColumnVisibility, freezeColumn, unfreezeColumn, moveColumn, tableContainerRef]);
+
+    // 动态计算表格高度并设置 CSS 变量
+    useEffect(() => {
+        if (tableContainerRef.current) {
+            const el = tableContainerRef.current;
+            const updateHeight = () => {
+                if (el) {
+                    el.style.setProperty('--sv-table-height', `${el.offsetHeight}px`);
+                }
+            };
+            updateHeight();
+            const ro = new ResizeObserver(updateHeight);
+            ro.observe(el);
+            return () => ro.disconnect();
+        }
+    }, []);
 
     // Apply column customizations
     let processedColumns = baseColumns
@@ -519,6 +547,13 @@ const SvTable: React.FC<SvTableProps> = (props) => {
                 .full-height-table th.ant-table-cell { position: relative; overflow: hidden; }
                 .column-resize-handle { position: absolute; right: -5px; top: 0; bottom: 0; width: 10px; cursor: col-resize; z-index: 100; opacity: 0; }
                 .column-resize-handle:hover { opacity: 1; }
+                
+                /* 限制下拉菜单高度并允许滚动 */
+                .sv-table-header-dropdown-menu, .sv-table-column-submenu .ant-dropdown-menu {
+                    max-height: calc(var(--sv-table-height, 500px) - 60px) !important;
+                    overflow-y: auto !important;
+                    overflow-x: hidden;
+                }
             `}</style>
             <ResizeContext.Provider value={resizeContextValue}>
                 <Table
