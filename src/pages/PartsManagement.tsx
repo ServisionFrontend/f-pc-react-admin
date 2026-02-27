@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import ReactDOM from "react-dom";
 import {
   Table,
   Button,
@@ -15,6 +16,7 @@ import {
   Tooltip,
   Modal,
   Badge,
+  Dropdown,
 } from "antd";
 import {
   PlusOutlined,
@@ -26,10 +28,129 @@ import {
   ReloadOutlined,
   DownOutlined,
   UpOutlined,
+  StarOutlined,
+  UndoOutlined,
+  HolderOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import partsService, { Part } from "../services/partsService";
 import { SvTable } from "../components";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+
+// 可拖拽的查询字段组件
+interface SortableFieldProps {
+  field: any;
+  isEditing: boolean;
+  onDelete: () => void;
+}
+
+const SortableField: React.FC<SortableFieldProps> = ({
+  field,
+  isEditing,
+  onDelete,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: field.name });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Col
+      ref={setNodeRef}
+      style={style}
+      xs={24}
+      sm={12}
+      md={8}
+      lg={6}
+      xl={4}
+    >
+      <div style={{ position: "relative" }}>
+        <Form.Item
+          name={field.name}
+          label={
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              {isEditing && (
+                <HolderOutlined
+                  {...attributes}
+                  {...listeners}
+                  style={{ cursor: "move", color: "#999" }}
+                />
+              )}
+              <span>{field.label}</span>
+            </div>
+          }
+          style={{ marginBottom: 8 }}
+        >
+          {field.type === "select" ? (
+            <Select
+              placeholder="请选择"
+              allowClear
+              options={field.options}
+              style={{ width: "100%" }}
+              disabled={isEditing}
+            />
+          ) : field.type === "number" ? (
+            <InputNumber
+              placeholder="请输入"
+              style={{ width: "100%" }}
+              min={0}
+              autoComplete="off"
+              disabled={isEditing}
+            />
+          ) : (
+            <Input
+              placeholder="请输入"
+              allowClear
+              autoComplete="off"
+              disabled={isEditing}
+            />
+          )}
+        </Form.Item>
+        {isEditing && (
+          <DeleteOutlined
+            onClick={onDelete}
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              color: "#ff4d4f",
+              cursor: "pointer",
+              fontSize: 16,
+              zIndex: 1,
+            }}
+          />
+        )}
+      </div>
+    </Col>
+  );
+};
 
 
 // 可展开文本框组件 - 默认单行，聚焦时浮动展开为多行
@@ -43,43 +164,60 @@ const ExpandableTextArea: React.FC<ExpandableTextAreaProps> = ({
   onChange,
 }) => {
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+
+  useEffect(() => {
+    if (focused && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.top + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    }
+  }, [focused]);
 
   return (
-    <div style={{ position: "relative" }}>
-      {/* 始终显示的单行输入框 */}
-      <Input
-        value={value}
-        onChange={(e) => onChange?.(e.target.value)}
-        autoComplete="off"
-        onFocus={() => setFocused(true)}
-        style={{ opacity: focused ? 0 : 1 }}
-      />
-      {/* 浮动的多行文本框 */}
-      {focused && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 100,
-            background: "#fff",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            borderRadius: 6,
-          }}
-        >
-          <Input.TextArea
-            value={value}
-            onChange={(e) => onChange?.(e.target.value)}
-            autoSize={{ minRows: 3, maxRows: 6 }}
-            autoComplete="off"
-            style={{ resize: "none" }}
-            onBlur={() => setFocused(false)}
-            autoFocus
-          />
-        </div>
-      )}
-    </div>
+    <>
+      <div ref={inputRef} style={{ position: "relative" }}>
+        {/* 始终显示的单行输入框 */}
+        <Input
+          value={value}
+          onChange={(e) => onChange?.(e.target.value)}
+          autoComplete="off"
+          onFocus={() => setFocused(true)}
+          style={{ opacity: focused ? 0 : 1 }}
+        />
+      </div>
+      {/* 浮动的多行文本框 - 使用 Portal 渲染到 body */}
+      {focused &&
+        ReactDOM.createPortal(
+          <div
+            style={{
+              position: "absolute",
+              top: position.top,
+              left: position.left,
+              width: position.width,
+              zIndex: 9999,
+              background: "#fff",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+              borderRadius: 0,
+            }}
+          >
+            <Input.TextArea
+              value={value}
+              onChange={(e) => onChange?.(e.target.value)}
+              autoSize={{ minRows: 3, maxRows: 6 }}
+              autoComplete="off"
+              style={{ resize: "none" }}
+              onBlur={() => setFocused(false)}
+              autoFocus
+            />
+          </div>,
+          document.body
+        )}
+    </>
   );
 };
 
@@ -315,6 +453,67 @@ const PartsManagement: React.FC = () => {
     };
     updateCount();
   }, [searchForm]);
+
+  // 保存的查询条件
+  const [savedSearches, setSavedSearches] = useState<
+    Array<{ name: string; conditions: any }>
+  >([]);
+  const [saveModalVisible, setSaveModalVisible] = useState(false);
+  const [searchName, setSearchName] = useState("");
+
+  // 从 localStorage 加载保存的查询条件
+  useEffect(() => {
+    const saved = localStorage.getItem("partsManagement_savedSearches");
+    if (saved) {
+      try {
+        setSavedSearches(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to load saved searches:", e);
+      }
+    }
+  }, []);
+
+  // 保存查询条件
+  const handleSaveSearch = () => {
+    if (!searchName.trim()) {
+      message.warning("请输入查询条件名称");
+      return;
+    }
+    const conditions = searchForm.getFieldsValue();
+    const hasConditions = Object.values(conditions).some(
+      (value) => value !== undefined && value !== null && value !== ""
+    );
+    if (!hasConditions) {
+      message.warning("请先输入查询条件");
+      return;
+    }
+
+    const newSearch = { name: searchName.trim(), conditions };
+    const updated = [...savedSearches, newSearch];
+    setSavedSearches(updated);
+    localStorage.setItem("partsManagement_savedSearches", JSON.stringify(updated));
+    message.success("查询条件已保存");
+    setSaveModalVisible(false);
+    setSearchName("");
+  };
+
+  // 加载已保存的查询条件
+  const handleLoadSearch = (conditions: any) => {
+    searchForm.setFieldsValue(conditions);
+    setFilledCount(getFilledFieldsCount());
+    // 自动执行查询
+    setPagination((prev) => ({ ...prev, current: 1 }));
+    fetchData({ ...conditions, page: 1 });
+    message.success("已加载查询条件并执行查询");
+  };
+
+  // 删除已保存的查询条件
+  const handleDeleteSearch = (index: number) => {
+    const updated = savedSearches.filter((_, i) => i !== index);
+    setSavedSearches(updated);
+    localStorage.setItem("partsManagement_savedSearches", JSON.stringify(updated));
+    message.success("已删除");
+  };
 
 
   // 尺寸弹框状态
@@ -913,7 +1112,7 @@ const PartsManagement: React.FC = () => {
 
 
   // 查询字段配置 - 包含所有列表字段
-  const searchFields = [
+  const defaultSearchFields = [
     { name: "partNo", label: "配件编号", type: "input" },
     { name: "partName", label: "配件名称", type: "input" },
     { name: "partNameEn", label: "英文名称", type: "input" },
@@ -943,6 +1142,60 @@ const PartsManagement: React.FC = () => {
     { name: "isFragile", label: "是否易碎", type: "select", options: fragileOptions },
     { name: "compatibility", label: "适用车型", type: "input" },
   ];
+
+  // 查询字段编辑状态
+  const [isEditingFields, setIsEditingFields] = useState(false);
+  const [searchFields, setSearchFields] = useState(defaultSearchFields);
+
+  // 从 localStorage 加载自定义字段配置
+  useEffect(() => {
+    const saved = localStorage.getItem("partsManagement_searchFields");
+    if (saved) {
+      try {
+        setSearchFields(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to load search fields:", e);
+      }
+    }
+  }, []);
+
+  // 保存字段配置到 localStorage
+  const saveFieldsConfig = (fields: typeof defaultSearchFields) => {
+    setSearchFields(fields);
+    localStorage.setItem("partsManagement_searchFields", JSON.stringify(fields));
+  };
+
+  // 拖拽传感器
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // 处理拖拽结束
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = searchFields.findIndex((f) => f.name === active.id);
+      const newIndex = searchFields.findIndex((f) => f.name === over.id);
+      const newFields = arrayMove(searchFields, oldIndex, newIndex);
+      saveFieldsConfig(newFields);
+    }
+  };
+
+  // 删除字段
+  const handleDeleteField = (fieldName: string) => {
+    const newFields = searchFields.filter((f) => f.name !== fieldName);
+    saveFieldsConfig(newFields);
+    message.success("已删除字段");
+  };
+
+  // 恢复默认字段配置
+  const handleRestoreFields = () => {
+    saveFieldsConfig(defaultSearchFields);
+    message.success("已恢复默认配置");
+  };
 
   // 展开时显示全部字段，收起时也显示全部字段（通过CSS控制显示行数）
   const visibleFields = searchFields;
@@ -974,86 +1227,191 @@ const PartsManagement: React.FC = () => {
           onKeyPress={(e) => e.key === "Enter" && handleSearch()}
           onValuesChange={() => setFilledCount(getFilledFieldsCount())}
         >
-          <div style={{ position: "relative" }}>
-            {/* 字段区域 */}
-            <div style={{ paddingRight: 280 }}>
-              <Row
-                gutter={[16, 8]}
-                style={{
-                  maxHeight: expanded ? "none" : "56px",
-                  overflow: "hidden",
-                  transition: "max-height 0.3s ease",
-                }}
-              >
-                {visibleFields.map((field) => (
-                  <Col key={field.name} xs={24} sm={12} md={8} lg={6} xl={4}>
-                    <Form.Item
-                      name={field.name}
-                      label={field.label}
-                      style={{ marginBottom: 8 }}
-                    >
-                      {field.type === "select" ? (
-                        <Select
-                          placeholder="请选择"
-                          allowClear
-                          options={field.options}
-                          style={{ width: "100%" }}
-                        />
-                      ) : field.type === "number" ? (
-                        <InputNumber
-                          placeholder="请输入"
-                          style={{ width: "100%" }}
-                          min={0}
-                          autoComplete="off"
-                        />
-                      ) : (
-                        <Input placeholder="请输入" allowClear autoComplete="off" />
-                      )}
-                    </Form.Item>
-                  </Col>
-                ))}
-              </Row>
-            </div>
-            {/* 按钮区域 - 绝对定位固定在右上角 */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                right: 0,
-                display: "flex",
-                alignItems: "flex-end",
-                paddingBottom: 8,
-                height: 56,
-              }}
+          {/* 字段区域 */}
+          <div
+            style={{
+              maxHeight: expanded ? "none" : "56px",
+              overflow: "hidden",
+              transition: "max-height 0.3s ease",
+            }}
+          >
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
             >
-              <Space>
+              <SortableContext
+                items={visibleFields.map((f) => f.name)}
+                strategy={verticalListSortingStrategy}
+              >
+                <Row gutter={[16, 8]}>
+                  {visibleFields.map((field) => (
+                    <SortableField
+                      key={field.name}
+                      field={field}
+                      isEditing={isEditingFields}
+                      onDelete={() => handleDeleteField(field.name)}
+                    />
+                  ))}
+                </Row>
+              </SortableContext>
+            </DndContext>
+          </div>
+          {/* 按钮区域 - 放在字段下方 */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginTop: 8,
+            }}
+          >
+            <Space>
+              {hasMoreFields && (
+                <Badge count={filledCount} offset={[0, 2]}>
+                  <Button
+                    onClick={() => setExpanded(!expanded)}
+                    icon={expanded ? <UpOutlined /> : <DownOutlined />}
+                    iconPosition="start"
+                    disabled={isEditingFields}
+                  >
+                    更多筛选
+                  </Button>
+                </Badge>
+              )}
+              {/* 编辑/恢复按钮 */}
+              {isEditingFields ? (
+                <>
+                  <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    onClick={() => {
+                      setIsEditingFields(false);
+                      message.success("已保存字段配置");
+                    }}
+                    style={{ marginLeft: 8 }}
+                  >
+                    完成编辑
+                  </Button>
+                  <Button
+                    icon={<UndoOutlined />}
+                    onClick={handleRestoreFields}
+                  >
+                    恢复默认
+                  </Button>
+                </>
+              ) : (
                 <Button
-                  type="primary"
-                  icon={<SearchOutlined />}
-                  onClick={handleSearch}
-                  loading={loading}
+                  icon={<EditOutlined />}
+                  onClick={() => {
+                    setIsEditingFields(true);
+                    setExpanded(true); // 编辑时自动展开
+                  }}
+                  style={{ marginLeft: 8 }}
                 >
-                  查询
+                  编辑字段
                 </Button>
-                <Button icon={<ReloadOutlined />} onClick={handleReset}>
-                  重置
+              )}
+            </Space>
+            <Space>
+              {/* 查询方案下拉菜单 */}
+              <Dropdown
+                menu={{
+                  items: [
+                    // 保存当前查询条件
+                    {
+                      key: "save",
+                      label: "保存当前查询条件",
+                      icon: <SaveOutlined />,
+                      onClick: () => setSaveModalVisible(true),
+                    },
+                    // 分隔线
+                    savedSearches.length > 0 && {
+                      type: "divider",
+                    },
+                    // 已保存的查询条件列表
+                    ...savedSearches.map((search, index) => ({
+                      key: `search-${index}`,
+                      label: (
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            minWidth: 200,
+                          }}
+                        >
+                          <span style={{ flex: 1 }}>{search.name}</span>
+                          <DeleteOutlined
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteSearch(index);
+                            }}
+                            style={{
+                              color: "#ff4d4f",
+                              marginLeft: 8,
+                              cursor: "pointer",
+                            }}
+                          />
+                        </div>
+                      ),
+                      icon: <StarOutlined />,
+                      onClick: () => handleLoadSearch(search.conditions),
+                    })),
+                  ].filter(Boolean),
+                }}
+                placement="bottomRight"
+                disabled={isEditingFields}
+              >
+                <Button icon={<StarOutlined />} disabled={isEditingFields}>
+                  查询方案 <DownOutlined />
                 </Button>
-                {hasMoreFields && (
-                  <Badge count={filledCount} offset={[-9, -8]}>
-                    <Button
-                      onClick={() => setExpanded(!expanded)}
-                      icon={expanded ? <UpOutlined /> : <DownOutlined />}
-                      iconPosition="start"
-                    >
-                      更多筛选
-                    </Button>
-                  </Badge>
-                )}
-              </Space>
-            </div>
+              </Dropdown>
+              <Button
+                type="primary"
+                icon={<SearchOutlined />}
+                onClick={handleSearch}
+                loading={loading}
+                disabled={isEditingFields}
+              >
+                查询
+              </Button>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={handleReset}
+                disabled={isEditingFields}
+              >
+                重置
+              </Button>
+            </Space>
           </div>
         </Form>
       </div>
+
+      {/* 保存查询条件弹窗 */}
+      <Modal
+        title="保存查询条件"
+        open={saveModalVisible}
+        onOk={handleSaveSearch}
+        onCancel={() => {
+          setSaveModalVisible(false);
+          setSearchName("");
+        }}
+        okText="保存"
+        cancelText="取消"
+      >
+        <Form layout="vertical">
+          <Form.Item label="查询条件名称" required>
+            <Input
+              placeholder="请输入查询条件名称"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+              onPressEnter={handleSaveSearch}
+              autoFocus
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* 尺寸选择弹框 */}
       <SizeSelectModal
