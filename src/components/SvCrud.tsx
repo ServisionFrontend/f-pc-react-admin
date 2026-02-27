@@ -1,7 +1,7 @@
 import React, { ReactNode, useState } from 'react';
 import { SvCrudContext } from './context';
-import { useCrud, PageResult } from '../../hooks/useCrud';
-import http, { Result } from '../../utils/http';
+import { useCrud, PageResult } from '../hooks/useCrud';
+import http, { Result } from '../utils/http';
 
 interface SvCrudProps {
     children: ReactNode;

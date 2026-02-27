@@ -14,6 +14,7 @@ import {
   Col,
   Tooltip,
   Modal,
+  Badge,
 } from "antd";
 import {
   PlusOutlined,
@@ -28,7 +29,7 @@ import {
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import partsService, { Part } from "../services/partsService";
-import SvTable from "../components/SvCrud/SvTable";
+import { SvTable } from "../components";
 
 
 // 可展开文本框组件 - 默认单行，聚焦时浮动展开为多行
@@ -297,6 +298,24 @@ const PartsManagement: React.FC = () => {
     order?: string;
   }>({});
 
+  // 计算已填写的查询条件数量
+  const getFilledFieldsCount = () => {
+    const values = searchForm.getFieldsValue();
+    return Object.values(values).filter(
+      (value) => value !== undefined && value !== null && value !== ""
+    ).length;
+  };
+
+  const [filledCount, setFilledCount] = useState(0);
+
+  // 监听表单变化更新计数
+  useEffect(() => {
+    const updateCount = () => {
+      setFilledCount(getFilledFieldsCount());
+    };
+    updateCount();
+  }, [searchForm]);
+
 
   // 尺寸弹框状态
   const [sizeModalVisible, setSizeModalVisible] = useState(false);
@@ -381,6 +400,7 @@ const PartsManagement: React.FC = () => {
     searchForm.resetFields();
     setSortParams({});
     setPagination((prev) => ({ ...prev, current: 1 }));
+    setFilledCount(0); // 重置计数
     fetchData({ page: 1, sortField: undefined, sortOrder: undefined });
   };
 
@@ -892,22 +912,41 @@ const PartsManagement: React.FC = () => {
 
 
 
-  // 查询字段配置
+  // 查询字段配置 - 包含所有列表字段
   const searchFields = [
     { name: "partNo", label: "配件编号", type: "input" },
     { name: "partName", label: "配件名称", type: "input" },
     { name: "partNameEn", label: "英文名称", type: "input" },
     { name: "size", label: "尺寸", type: "input" },
     { name: "section", label: "科组", type: "select", options: sectionOptions },
+    { name: "quantity", label: "用量", type: "number" },
     { name: "status", label: "状态", type: "select", options: statusOptions },
+    { name: "remark", label: "备注", type: "input" },
+    { name: "manufacturer", label: "制造商", type: "input" },
+    { name: "material", label: "材质", type: "input" },
+    { name: "weight", label: "重量(g)", type: "number" },
+    { name: "price", label: "单价(元)", type: "number" },
+    { name: "supplier", label: "供应商", type: "input" },
+    { name: "level", label: "等级", type: "select", options: levelOptions },
+    { name: "color", label: "颜色", type: "input" },
+    { name: "unit", label: "单位", type: "input" },
+    { name: "productionDate", label: "生产日期", type: "input" },
+    { name: "validityPeriod", label: "有效期(月)", type: "number" },
+    { name: "version", label: "版本", type: "input" },
+    { name: "safetyStock", label: "安全库存", type: "number" },
+    { name: "maxStock", label: "最大库存", type: "number" },
+    { name: "location", label: "存放位置", type: "input" },
+    { name: "inspector", label: "检验员", type: "input" },
+    { name: "certNo", label: "合格证号", type: "input" },
+    { name: "drawingNo", label: "图纸号", type: "input" },
+    { name: "batchNo", label: "批次号", type: "input" },
+    { name: "isFragile", label: "是否易碎", type: "select", options: fragileOptions },
+    { name: "compatibility", label: "适用车型", type: "input" },
   ];
 
-  // 默认显示的字段数量（一行约4个字段）
-  const defaultVisibleCount = 4;
-  const visibleFields = expanded
-    ? searchFields
-    : searchFields.slice(0, defaultVisibleCount);
-  const hasMoreFields = searchFields.length > defaultVisibleCount;
+  // 展开时显示全部字段，收起时也显示全部字段（通过CSS控制显示行数）
+  const visibleFields = searchFields;
+  const hasMoreFields = searchFields.length > 6; // 假设一行能放6个左右
 
   return (
     <div
@@ -931,40 +970,60 @@ const PartsManagement: React.FC = () => {
       >
         <Form
           form={searchForm}
+          layout="vertical"
           onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+          onValuesChange={() => setFilledCount(getFilledFieldsCount())}
         >
-          <Row gutter={[16, 8]}>
-            {visibleFields.map((field) => (
-              <Col key={field.name} xs={24} sm={12} md={8} lg={6} xl={4}>
-                <Form.Item
-                  name={field.name}
-                  label={field.label}
-                  style={{ marginBottom: 8 }}
-                >
-                  {field.type === "select" ? (
-                    <Select
-                      placeholder="请选择"
-                      allowClear
-                      options={field.options}
-                      style={{ width: "100%" }}
-                    />
-                  ) : (
-                    <Input placeholder="请输入" allowClear autoComplete="off" />
-                  )}
-                </Form.Item>
-              </Col>
-            ))}
-            {/* 按钮区域 - 始终在末尾 */}
-            <Col
-              xs={24}
-              sm={12}
-              md={8}
-              lg={6}
-              xl={4}
+          <div style={{ position: "relative" }}>
+            {/* 字段区域 */}
+            <div style={{ paddingRight: 280 }}>
+              <Row
+                gutter={[16, 8]}
+                style={{
+                  maxHeight: expanded ? "none" : "56px",
+                  overflow: "hidden",
+                  transition: "max-height 0.3s ease",
+                }}
+              >
+                {visibleFields.map((field) => (
+                  <Col key={field.name} xs={24} sm={12} md={8} lg={6} xl={4}>
+                    <Form.Item
+                      name={field.name}
+                      label={field.label}
+                      style={{ marginBottom: 8 }}
+                    >
+                      {field.type === "select" ? (
+                        <Select
+                          placeholder="请选择"
+                          allowClear
+                          options={field.options}
+                          style={{ width: "100%" }}
+                        />
+                      ) : field.type === "number" ? (
+                        <InputNumber
+                          placeholder="请输入"
+                          style={{ width: "100%" }}
+                          min={0}
+                          autoComplete="off"
+                        />
+                      ) : (
+                        <Input placeholder="请输入" allowClear autoComplete="off" />
+                      )}
+                    </Form.Item>
+                  </Col>
+                ))}
+              </Row>
+            </div>
+            {/* 按钮区域 - 绝对定位固定在右上角 */}
+            <div
               style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
                 display: "flex",
-                alignItems: "flex-start",
-                paddingTop: 4,
+                alignItems: "flex-end",
+                paddingBottom: 8,
+                height: 56,
               }}
             >
               <Space>
@@ -980,22 +1039,19 @@ const PartsManagement: React.FC = () => {
                   重置
                 </Button>
                 {hasMoreFields && (
-                  <Button
-                    type="link"
-                    onClick={() => setExpanded(!expanded)}
-                    style={{ padding: "4px 0" }}
-                  >
-                    {expanded ? "收起" : "展开"}
-                    {expanded ? (
-                      <UpOutlined style={{ marginLeft: 4 }} />
-                    ) : (
-                      <DownOutlined style={{ marginLeft: 4 }} />
-                    )}
-                  </Button>
+                  <Badge count={filledCount} offset={[-9, -8]}>
+                    <Button
+                      onClick={() => setExpanded(!expanded)}
+                      icon={expanded ? <UpOutlined /> : <DownOutlined />}
+                      iconPosition="start"
+                    >
+                      更多筛选
+                    </Button>
+                  </Badge>
                 )}
               </Space>
-            </Col>
-          </Row>
+            </div>
+          </div>
         </Form>
       </div>
 

@@ -1,4 +1,4 @@
-import { SvCrud, SvQuery, SvTable, SvEdit, SvItem } from '../components/SvCrud/exports';
+import { SvCrud, SvQuery, SvTable, SvEdit, SvItem } from '../components';
 import userService from '../services/userService';
 import { Tag, Space } from 'antd';
 
