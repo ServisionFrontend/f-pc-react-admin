@@ -43,6 +43,9 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  DragOverEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -59,12 +62,16 @@ interface SortableFieldProps {
   field: any;
   isEditing: boolean;
   onDelete: () => void;
+  isActiveField: boolean; // 是否是正在拖动的字段
+  isOverField: boolean; // 是否是目标悬停位置
 }
 
 const SortableField: React.FC<SortableFieldProps> = ({
   field,
   isEditing,
   onDelete,
+  isActiveField,
+  isOverField,
 }) => {
   const {
     attributes,
@@ -72,13 +79,16 @@ const SortableField: React.FC<SortableFieldProps> = ({
     setNodeRef,
     transform,
     transition,
-    isDragging,
-  } = useSortable({ id: field.name });
+  } = useSortable({
+    id: field.name,
+    // 禁用动画过渡，防止其他字段自动移动
+    animateLayoutChanges: () => false,
+  });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    // 只对正在拖动的字段应用 transform，其他字段保持原位
+    transform: isActiveField ? undefined : CSS.Transform.toString(transform),
+    transition: isActiveField ? undefined : transition,
   };
 
   return (
@@ -91,7 +101,17 @@ const SortableField: React.FC<SortableFieldProps> = ({
       lg={6}
       xl={4}
     >
-      <div style={{ position: "relative" }}>
+      <div
+        style={{
+          position: "relative",
+          opacity: isActiveField ? 0 : 1, // 拖动的字段完全隐藏
+          border: isOverField ? "2px dashed #1890ff" : "none", // 只在目标位置显示虚线
+          borderRadius: 6,
+          padding: isOverField ? 4 : 0,
+          backgroundColor: isOverField ? "#f0f5ff" : "transparent", // 只在目标位置显示背景
+          minHeight: 56,
+        }}
+      >
         <Form.Item
           name={field.name}
           label={
@@ -100,7 +120,7 @@ const SortableField: React.FC<SortableFieldProps> = ({
                 <HolderOutlined
                   {...attributes}
                   {...listeners}
-                  style={{ cursor: "move", color: "#999" }}
+                  style={{ cursor: "grab", color: "#1890ff", fontSize: 14 }}
                 />
               )}
               <span>{field.label}</span>
@@ -1173,6 +1193,22 @@ const PartsManagement: React.FC = () => {
     })
   );
 
+  // 当前拖动的字段
+  const [activeId, setActiveId] = useState<string | null>(null);
+  // 当前悬停的目标字段
+  const [overId, setOverId] = useState<string | null>(null);
+
+  // 处理拖拽开始
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  // 处理拖拽悬停
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over } = event;
+    setOverId(over ? (over.id as string) : null);
+  };
+
   // 处理拖拽结束
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -1182,6 +1218,14 @@ const PartsManagement: React.FC = () => {
       const newFields = arrayMove(searchFields, oldIndex, newIndex);
       saveFieldsConfig(newFields);
     }
+    setActiveId(null);
+    setOverId(null);
+  };
+
+  // 处理拖拽取消
+  const handleDragCancel = () => {
+    setActiveId(null);
+    setOverId(null);
   };
 
   // 删除字段
@@ -1238,7 +1282,10 @@ const PartsManagement: React.FC = () => {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
             >
               <SortableContext
                 items={visibleFields.map((f) => f.name)}
@@ -1251,10 +1298,34 @@ const PartsManagement: React.FC = () => {
                       field={field}
                       isEditing={isEditingFields}
                       onDelete={() => handleDeleteField(field.name)}
+                      isActiveField={activeId === field.name}
+                      isOverField={overId === field.name}
                     />
                   ))}
                 </Row>
               </SortableContext>
+              {/* 拖动时的浮动预览 */}
+              <DragOverlay>
+                {activeId ? (
+                  <div
+                    style={{
+                      backgroundColor: "#fff",
+                      border: "2px solid #1890ff",
+                      borderRadius: 6,
+                      padding: 8,
+                      boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
+                      cursor: "grabbing",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <HolderOutlined style={{ color: "#1890ff", fontSize: 14 }} />
+                      <span style={{ fontWeight: 500 }}>
+                        {visibleFields.find((f) => f.name === activeId)?.label}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+              </DragOverlay>
             </DndContext>
           </div>
           {/* 按钮区域 - 放在字段下方 */}
