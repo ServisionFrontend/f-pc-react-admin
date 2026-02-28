@@ -456,6 +456,56 @@ const PartsManagement: React.FC = () => {
     order?: string;
   }>({});
 
+  // 多选功能
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+
+  // 处理选择变化
+  const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
+    setSelectedRowKeys(newSelectedRowKeys);
+  };
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning("请先选择要删除的数据");
+      return;
+    }
+
+    Modal.confirm({
+      title: "确认删除",
+      content: `确定要删除选中的 ${selectedRowKeys.length} 条数据吗？`,
+      okText: "确定",
+      cancelText: "取消",
+      okType: "danger",
+      onOk: async () => {
+        setLoading(true);
+        try {
+          // 这里应该调用批量删除接口，暂时用循环删除模拟
+          for (const key of selectedRowKeys) {
+            await partsService.delete(key as string);
+          }
+          message.success("批量删除成功");
+          setSelectedRowKeys([]);
+          fetchData();
+        } catch (error) {
+          message.error("批量删除失败");
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
+  };
+
+  // 行选择配置
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: onSelectChange,
+    // 编辑状态下禁用选择
+    getCheckboxProps: (record: Part) => ({
+      disabled: editingKey !== "",
+    }),
+  };
+
   // 计算已填写的查询条件数量
   const getFilledFieldsCount = () => {
     const values = searchForm.getFieldsValue();
@@ -519,11 +569,47 @@ const PartsManagement: React.FC = () => {
 
   // 加载已保存的查询条件
   const handleLoadSearch = (conditions: any) => {
+    // 获取查询方案中包含的字段名称
+    const conditionFields = Object.keys(conditions).filter(
+      (key) => conditions[key] !== undefined && conditions[key] !== null && conditions[key] !== ""
+    );
+
+    // 检查这些字段是否在当前的 searchFields 中
+    const currentFieldNames = searchFields.map((f) => f.name);
+    const missingFields = conditionFields.filter(
+      (fieldName) => !currentFieldNames.includes(fieldName)
+    );
+
+    // 如果有缺失的字段，需要恢复
+    if (missingFields.length > 0) {
+      const missingFieldObjects = defaultSearchFields.filter((f) =>
+        missingFields.includes(f.name)
+      );
+
+      // 将缺失的字段添加回来
+      const restoredFields = [...searchFields, ...missingFieldObjects];
+      saveFieldsConfig(restoredFields);
+
+      message.info(
+        `已自动恢复 ${missingFieldObjects.map((f) => f.label).join("、")} 字段`
+      );
+    }
+
+    // 填充查询条件
     searchForm.setFieldsValue(conditions);
-    setFilledCount(getFilledFieldsCount());
+
+    // 使用 setTimeout 确保表单值更新后再计算
+    setTimeout(() => {
+      setFilledCount(getFilledFieldsCount());
+    }, 0);
+
+    // 自动展开以显示所有字段
+    setExpanded(true);
+
     // 自动执行查询
     setPagination((prev) => ({ ...prev, current: 1 }));
     fetchData({ ...conditions, page: 1 });
+
     message.success("已加载查询条件并执行查询");
   };
 
@@ -1505,15 +1591,32 @@ const PartsManagement: React.FC = () => {
           flexDirection: "column",
         }}
       >
-        <div style={{ marginBottom: 12 }}>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            disabled={editingKey !== ""}
-          >
-            新增配件
-          </Button>
+        <div style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Space>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAdd}
+              disabled={editingKey !== ""}
+            >
+              新增配件
+            </Button>
+            {selectedRowKeys.length > 0 && (
+              <>
+                <Button
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={handleBatchDelete}
+                  disabled={editingKey !== ""}
+                >
+                  批量删除
+                </Button>
+                <span style={{ color: "#666", fontSize: 14 }}>
+                  已选择 {selectedRowKeys.length} 项
+                </span>
+              </>
+            )}
+          </Space>
         </div>
 
         <Form form={form} component={false}>
@@ -1529,6 +1632,7 @@ const PartsManagement: React.FC = () => {
             dataSource={data}
             columns={columns as any}
             rowClassName="editable-row"
+            rowSelection={rowSelection}
             pagination={{
               ...pagination,
               showSizeChanger: true,
