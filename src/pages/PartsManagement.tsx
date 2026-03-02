@@ -669,7 +669,7 @@ const fragileOptions = [
 ];
 
 // 全部查询条件常量
-const ALL_FIELDS_SCHEME = "全部查询条件";
+const ALL_FIELDS_SCHEME = "全部";
 
 const PartsManagement: React.FC = () => {
   const [form] = Form.useForm();
@@ -1699,6 +1699,9 @@ const PartsManagement: React.FC = () => {
   // 选中的字段（用于"全部查询条件"模式下保存查询方案）
   const [selectedFieldNames, setSelectedFieldNames] = useState<string[]>([]);
 
+  // 保存编辑前的字段配置（用于取消编辑时恢复）
+  const [fieldsBeforeEdit, setFieldsBeforeEdit] = useState<typeof defaultSearchFields>([]);
+
   // 从 localStorage 加载自定义字段配置（包括"全部查询条件"下的自定义排序）
   useEffect(() => {
     const saved = localStorage.getItem("partsManagement_searchFields");
@@ -1945,7 +1948,7 @@ const PartsManagement: React.FC = () => {
                 currentScheme !== ALL_FIELDS_SCHEME ? (
                 <PushpinFilled />
               ) : null}{" "}
-              当前方案: {currentScheme}{" "}
+              当前查询模板: {currentScheme}{" "}
               <DownOutlined style={{ fontSize: 10 }} />
             </Tag>
           </Dropdown>
@@ -2055,7 +2058,7 @@ const PartsManagement: React.FC = () => {
           >
             <Space>
               {hasMoreFields && (
-                <Badge count={filledCount} offset={[0, 2]}>
+                <Badge count={filledCount} offset={[0, 2]} style={{ zIndex: 999 }}>
                   <Button
                     onClick={() => setExpanded(!expanded)}
                     icon={expanded ? <UpOutlined /> : <DownOutlined />}
@@ -2113,12 +2116,26 @@ const PartsManagement: React.FC = () => {
                   >
                     完成编辑
                   </Button>
+                  <Button
+                    icon={<CloseOutlined />}
+                    onClick={() => {
+                      // 恢复到编辑前的字段配置
+                      setSearchFields([...fieldsBeforeEdit]);
+                      setIsEditingFields(false);
+                      setSelectedFieldNames([]); // 清空选中的字段
+                    }}
+                    style={{ marginLeft: 8 }}
+                  >
+                    取消编辑
+                  </Button>
                 </>
               ) : (
                 <>
                   <Button
                     icon={<EditOutlined />}
                     onClick={() => {
+                      // 保存编辑前的字段配置
+                      setFieldsBeforeEdit([...searchFields]);
                       setIsEditingFields(true);
                       setExpanded(true); // 编辑时自动展开
                       // 如果是"全部查询条件"，不默认选中任何字段
@@ -2140,7 +2157,7 @@ const PartsManagement: React.FC = () => {
                   onClick={() => setSaveModalVisible(true)}
                   disabled={isEditingFields && selectedFieldNames.length === 0}
                 >
-                  保存查询方案
+                  保存查询模板
                 </Button>
               )}
               <Button
