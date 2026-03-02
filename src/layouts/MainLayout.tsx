@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Layout, Menu, Button, Avatar, Space, Dropdown } from 'antd';
+import { Layout, Menu, Button, Avatar, Space, Dropdown, Badge } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   DashboardOutlined,
@@ -11,15 +11,28 @@ import {
   SettingOutlined,
   LogoutOutlined,
   ToolOutlined,
+  TeamOutlined,
+  CarOutlined,
 } from '@ant-design/icons';
-import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { useLocation, Outlet } from 'react-router-dom';
+import { useTabsContext } from '../contexts/TabsContext';
+import TabBar from '../components/TabBar';
 
 const { Header, Sider, Content } = Layout;
 
+// 路由配置映射
+const routeConfig: Record<string, { label: string; closable: boolean }> = {
+  '/': { label: '仪表盘', closable: false },
+  '/users': { label: '用户管理', closable: true },
+  '/roles': { label: '角色管理', closable: true },
+  '/products': { label: '产品管理', closable: true },
+  '/parts': { label: '配件管理', closable: true },
+};
+
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const navigate = useNavigate();
   const location = useLocation();
+  const { addTab } = useTabsContext();
 
   const menuItems: MenuProps['items'] = [
     {
@@ -34,7 +47,7 @@ const MainLayout = () => {
     },
     {
       key: '/roles',
-      icon: <UserOutlined />, // or another icon like TeamOutlined
+      icon: <TeamOutlined />,
       label: '角色管理',
     },
     {
@@ -71,6 +84,17 @@ const MainLayout = () => {
     },
   ];
 
+  const handleMenuClick = ({ key }: { key: string }) => {
+    const config = routeConfig[key];
+    if (config) {
+      addTab({
+        key,
+        label: config.label,
+        closable: config.closable,
+      });
+    }
+  };
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
@@ -86,19 +110,21 @@ const MainLayout = () => {
           left: 0,
           top: 0,
           bottom: 0,
-          borderRight: '1px solid #f3f4f6',
+          borderRight: '1px solid #f0f0f0',
+          boxShadow: '2px 0 8px rgba(0,0,0,0.02)',
         }}
         className="premium-sider"
       >
         <div className="logo-container">
-          <div className="logo-text">{collapsed ? 'EPIS' : 'EPIS'}</div>
+          <CarOutlined className="logo-icon" />
+          {!collapsed && <div className="logo-text">汽车数据平台</div>}
         </div>
         <Menu
           theme="light"
           mode="inline"
-          defaultSelectedKeys={[location.pathname]}
+          selectedKeys={[location.pathname]}
           items={menuItems}
-          onClick={({ key }) => navigate(key)}
+          onClick={handleMenuClick}
           style={{ borderRight: 0, padding: '16px 0' }}
         />
       </Sider>
@@ -111,11 +137,13 @@ const MainLayout = () => {
             style={{ fontSize: '18px', width: 48, height: 48, borderRadius: 12 }}
           />
           <Space size={24}>
-            <Button
-              type="text"
-              icon={<BellOutlined />}
-              style={{ fontSize: '18px', width: 40, height: 40, borderRadius: '50%' }}
-            />
+            <Badge count={5} offset={[-2, 2]}>
+              <Button
+                type="text"
+                icon={<BellOutlined />}
+                style={{ fontSize: '18px', width: 40, height: 40, borderRadius: '50%' }}
+              />
+            </Badge>
             <Dropdown menu={{ items: userMenuItems }} trigger={['click']}>
               <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, padding: '4px 8px', borderRadius: 8, transition: 'all 0.3s' }} className="user-dropdown">
                 <Avatar size={40} src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" style={{ border: '2px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
@@ -127,10 +155,11 @@ const MainLayout = () => {
             </Dropdown>
           </Space>
         </Header>
+        <TabBar />
         <Content
           style={{
-            margin: '24px',
-            padding: 0,
+            margin: '0 24px 24px',
+            padding: 15,
             minHeight: 280,
             overflow: 'initial',
             display: 'flex',

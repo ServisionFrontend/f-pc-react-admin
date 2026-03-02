@@ -6,6 +6,7 @@ import ProductManagement from './pages/ProductManagement';
 import RoleManagement from './pages/RoleManagement';
 import PartsManagement from './pages/PartsManagement';
 import { ConfigProvider } from 'antd';
+import { TabsProvider } from './contexts/TabsContext';
 
 function App() {
   return (
@@ -95,15 +96,17 @@ function App() {
       }}
     >
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<MainLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="users" element={<UserManagement />} />
-            <Route path="roles" element={<RoleManagement />} />
-            <Route path="products" element={<ProductManagement />} />
-            <Route path="parts" element={<PartsManagement />} />
-          </Route>
-        </Routes>
+        <TabsProvider>
+          <Routes>
+            <Route path="/" element={<MainLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="users" element={<UserManagement />} />
+              <Route path="roles" element={<RoleManagement />} />
+              <Route path="products" element={<ProductManagement />} />
+              <Route path="parts" element={<PartsManagement />} />
+            </Route>
+          </Routes>
+        </TabsProvider>
       </BrowserRouter>
     </ConfigProvider>
   );

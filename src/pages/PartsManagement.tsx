@@ -17,7 +17,11 @@ import {
   Modal,
   Badge,
   Dropdown,
+  DatePicker,
+  Divider,
 } from "antd";
+const { RangePicker } = DatePicker;
+import dayjs from 'dayjs';
 import {
   PlusOutlined,
   EditOutlined,
@@ -28,9 +32,11 @@ import {
   ReloadOutlined,
   DownOutlined,
   UpOutlined,
-  StarOutlined,
+  PushpinOutlined,
   UndoOutlined,
   HolderOutlined,
+  CheckOutlined,
+  PushpinFilled,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import partsService, { Part } from "../services/partsService";
@@ -57,6 +63,138 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 
+// 可拖拽的查询方案菜单项组件
+interface SortableSchemeItemProps {
+  search: { name: string; conditions: any; fields?: string[]; isDefault?: boolean };
+  index: number;
+  currentScheme: string;
+  defaultScheme: string | null;
+  onLoad: () => void;
+  onSetDefault: () => void;
+  onCancelDefault: () => void;
+  onDelete: () => void;
+}
+
+const SortableSchemeItem: React.FC<SortableSchemeItemProps> = ({
+  search,
+  index,
+  currentScheme,
+  defaultScheme,
+  onLoad,
+  onSetDefault,
+  onCancelDefault,
+  onDelete,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: `scheme-${index}`,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={onLoad}
+      className="scheme-menu-item"
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          minWidth: 240,
+          gap: 8,
+          padding: "5px 12px",
+          cursor: "pointer",
+          backgroundColor: "transparent",
+          transition: "background-color 0.2s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "#f5f5f5";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "transparent";
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+          {/* 拖拽手柄 */}
+          <HolderOutlined
+            {...attributes}
+            {...listeners}
+            style={{ cursor: "grab", color: "#8c8c8c", fontSize: 14 }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          {/* 选中图标 */}
+          {currentScheme === search.name ? (
+            <CheckOutlined style={{ color: "#1890ff", fontSize: 14 }} />
+          ) : search.name === defaultScheme ? (
+            <PushpinFilled style={{ color: "#faad14", fontSize: 14 }} />
+          ) : (
+            <PushpinOutlined style={{ color: "#d9d9d9", fontSize: 14 }} />
+          )}
+          {/* 方案名称 */}
+          <span
+            style={{
+              flex: 1,
+              fontWeight: currentScheme === search.name ? 600 : 400,
+            }}
+          >
+            {search.name}
+          </span>
+        </div>
+        <Space size={4} onClick={(e) => e.stopPropagation()}>
+          {/* 设置/取消默认按钮 */}
+          {search.name === defaultScheme ? (
+            <PushpinFilled
+              style={{ color: "#faad14", fontSize: 16, cursor: "pointer" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancelDefault();
+              }}
+              title="取消默认"
+            />
+          ) : (
+            <PushpinOutlined
+              style={{ color: "#8c8c8c", fontSize: 16, cursor: "pointer" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSetDefault();
+              }}
+              title="设置为默认"
+            />
+          )}
+          {/* 删除按钮 */}
+          <DeleteOutlined
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            style={{
+              color: "#ff4d4f",
+              fontSize: 16,
+              cursor: "pointer",
+            }}
+            title="删除"
+          />
+        </Space>
+      </div>
+    </div>
+  );
+};
+
+
 // 可拖拽的查询字段组件
 interface SortableFieldProps {
   field: any;
@@ -64,6 +202,10 @@ interface SortableFieldProps {
   onDelete: () => void;
   isActiveField: boolean; // 是否是正在拖动的字段
   isOverField: boolean; // 是否是目标悬停位置
+  showCheckbox?: boolean; // 是否显示复选框
+  isChecked?: boolean; // 是否选中
+  onCheckChange?: (checked: boolean) => void; // 复选框变化回调
+  disableInput?: boolean; // 是否禁用输入框
 }
 
 const SortableField: React.FC<SortableFieldProps> = ({
@@ -72,6 +214,10 @@ const SortableField: React.FC<SortableFieldProps> = ({
   onDelete,
   isActiveField,
   isOverField,
+  showCheckbox = false,
+  isChecked = false,
+  onCheckChange,
+  disableInput = false,
 }) => {
   const {
     attributes,
@@ -116,7 +262,7 @@ const SortableField: React.FC<SortableFieldProps> = ({
           name={field.name}
           label={
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              {isEditing && (
+              {isEditing && !showCheckbox && (
                 <HolderOutlined
                   {...attributes}
                   {...listeners}
@@ -124,6 +270,15 @@ const SortableField: React.FC<SortableFieldProps> = ({
                 />
               )}
               <span>{field.label}</span>
+              {showCheckbox && (
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={(e) => onCheckChange?.(e.target.checked)}
+                  style={{ marginLeft: 8, cursor: "pointer" }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              )}
             </div>
           }
           style={{ marginBottom: 8 }}
@@ -134,7 +289,7 @@ const SortableField: React.FC<SortableFieldProps> = ({
               allowClear
               options={field.options}
               style={{ width: "100%" }}
-              disabled={isEditing}
+              disabled={disableInput}
             />
           ) : field.type === "number" ? (
             <InputNumber
@@ -142,18 +297,25 @@ const SortableField: React.FC<SortableFieldProps> = ({
               style={{ width: "100%" }}
               min={0}
               autoComplete="off"
-              disabled={isEditing}
+              disabled={disableInput}
+            />
+          ) : field.type === "dateRange" ? (
+            <RangePicker
+              placeholder={["开始日期", "结束日期"]}
+              style={{ width: "100%" }}
+              disabled={disableInput}
+              format="YYYY-MM-DD"
             />
           ) : (
             <Input
               placeholder="请输入"
               allowClear
               autoComplete="off"
-              disabled={isEditing}
+              disabled={disableInput}
             />
           )}
         </Form.Item>
-        {isEditing && (
+        {isEditing && !showCheckbox && (
           <DeleteOutlined
             onClick={onDelete}
             style={{
@@ -438,6 +600,9 @@ const fragileOptions = [
   { label: "否(N)", value: "N" },
 ];
 
+// 全部查询条件常量
+const ALL_FIELDS_SCHEME = "全部查询条件";
+
 const PartsManagement: React.FC = () => {
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
@@ -526,10 +691,12 @@ const PartsManagement: React.FC = () => {
 
   // 保存的查询条件
   const [savedSearches, setSavedSearches] = useState<
-    Array<{ name: string; conditions: any }>
+    Array<{ name: string; conditions: any; fields?: string[]; isDefault?: boolean }>
   >([]);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [searchName, setSearchName] = useState("");
+  const [currentScheme, setCurrentScheme] = useState<string>(ALL_FIELDS_SCHEME); // 当前选中的查询方案名称，默认为"全部查询条件"
+  const [defaultScheme, setDefaultScheme] = useState<string | null>(null); // 默认查询方案名称
 
   // 从 localStorage 加载保存的查询条件
   useEffect(() => {
@@ -541,6 +708,12 @@ const PartsManagement: React.FC = () => {
         console.error("Failed to load saved searches:", e);
       }
     }
+
+    // 加载默认方案
+    const defaultSchemeName = localStorage.getItem("partsManagement_defaultScheme");
+    if (defaultSchemeName) {
+      setDefaultScheme(defaultSchemeName);
+    }
   }, []);
 
   // 保存查询条件
@@ -549,54 +722,116 @@ const PartsManagement: React.FC = () => {
       message.warning("请输入查询条件名称");
       return;
     }
-    const conditions = searchForm.getFieldsValue();
-    const hasConditions = Object.values(conditions).some(
-      (value) => value !== undefined && value !== null && value !== ""
-    );
-    if (!hasConditions) {
-      message.warning("请先输入查询条件");
-      return;
+
+    // 如果当前是"全部查询条件"且在编辑模式，检查是否有选中字段
+    if (currentScheme === ALL_FIELDS_SCHEME && isEditingFields) {
+      if (selectedFieldNames.length === 0) {
+        message.warning("请至少选择一个字段");
+        return;
+      }
     }
 
-    const newSearch = { name: searchName.trim(), conditions };
+    const conditions = searchForm.getFieldsValue();
+
+    // 处理日期范围，转换为字符串以便保存到localStorage
+    const processedConditions = { ...conditions };
+    if (processedConditions.productionDate && Array.isArray(processedConditions.productionDate)) {
+      processedConditions.productionDate = processedConditions.productionDate.map((date: any) => {
+        if (date && typeof date.format === 'function') {
+          return date.format('YYYY-MM-DD');
+        }
+        return date;
+      });
+    }
+
+    // 确定要保存的字段列表
+    let fieldsToSave: string[];
+    if (currentScheme === ALL_FIELDS_SCHEME && isEditingFields && selectedFieldNames.length > 0) {
+      // 如果在"全部查询条件"且编辑模式下，使用选中的字段
+      fieldsToSave = selectedFieldNames;
+    } else {
+      // 否则保存当前使用的字段列表
+      const usedFields = Object.keys(conditions).filter(
+        (key) => conditions[key] !== undefined && conditions[key] !== null && conditions[key] !== ""
+      );
+      // 如果没有填写查询条件，则保存所有当前显示的字段
+      fieldsToSave = usedFields.length > 0 ? usedFields : searchFields.map((f) => f.name);
+    }
+
+    const newSearch = {
+      name: searchName.trim(),
+      conditions: processedConditions,
+      fields: fieldsToSave // 保存字段列表
+    };
     const updated = [...savedSearches, newSearch];
     setSavedSearches(updated);
     localStorage.setItem("partsManagement_savedSearches", JSON.stringify(updated));
     message.success("查询条件已保存");
     setSaveModalVisible(false);
     setSearchName("");
+
+    // 清空选中的字段
+    setSelectedFieldNames([]);
   };
 
   // 加载已保存的查询条件
-  const handleLoadSearch = (conditions: any) => {
-    // 获取查询方案中包含的字段名称
-    const conditionFields = Object.keys(conditions).filter(
-      (key) => conditions[key] !== undefined && conditions[key] !== null && conditions[key] !== ""
-    );
+  const handleLoadSearch = (search: { name: string; conditions: any; fields?: string[] }) => {
+    const { name, conditions, fields } = search;
 
-    // 检查这些字段是否在当前的 searchFields 中
-    const currentFieldNames = searchFields.map((f) => f.name);
-    const missingFields = conditionFields.filter(
-      (fieldName) => !currentFieldNames.includes(fieldName)
-    );
+    // 设置当前查询方案
+    setCurrentScheme(name);
 
-    // 如果有缺失的字段，需要恢复
-    if (missingFields.length > 0) {
-      const missingFieldObjects = defaultSearchFields.filter((f) =>
-        missingFields.includes(f.name)
+    // 清空选中的字段
+    setSelectedFieldNames([]);
+
+    // 如果方案中保存了字段列表，按照保存的顺序显示这些字段
+    if (fields && fields.length > 0) {
+      // 按照保存的字段顺序重新构建字段数组
+      const schemeFields = fields
+        .map((fieldName) => defaultSearchFields.find((f) => f.name === fieldName))
+        .filter((f) => f !== undefined) as typeof defaultSearchFields;
+      setSearchFields(schemeFields);
+    } else {
+      // 兼容旧版本：获取查询方案中包含的字段名称
+      const conditionFields = Object.keys(conditions).filter(
+        (key) => conditions[key] !== undefined && conditions[key] !== null && conditions[key] !== ""
       );
 
-      // 将缺失的字段添加回来
-      const restoredFields = [...searchFields, ...missingFieldObjects];
-      saveFieldsConfig(restoredFields);
-
-      message.info(
-        `已自动恢复 ${missingFieldObjects.map((f) => f.label).join("、")} 字段`
+      // 检查这些字段是否在当前的 searchFields 中
+      const currentFieldNames = searchFields.map((f) => f.name);
+      const missingFields = conditionFields.filter(
+        (fieldName) => !currentFieldNames.includes(fieldName)
       );
+
+      // 如果有缺失的字段，需要恢复
+      if (missingFields.length > 0) {
+        const missingFieldObjects = defaultSearchFields.filter((f) =>
+          missingFields.includes(f.name)
+        );
+
+        // 将缺失的字段添加回来
+        const restoredFields = [...searchFields, ...missingFieldObjects];
+        setSearchFields(restoredFields);
+
+        message.info(
+          `已自动恢复 ${missingFieldObjects.map((f) => f.label).join("、")} 字段`
+        );
+      }
+    }
+
+    // 处理日期范围字段，将字符串转换为dayjs对象
+    const processedConditions = { ...conditions };
+    if (processedConditions.productionDate && Array.isArray(processedConditions.productionDate)) {
+      processedConditions.productionDate = processedConditions.productionDate.map((dateStr: any) => {
+        if (typeof dateStr === 'string') {
+          return dayjs(dateStr);
+        }
+        return dateStr;
+      });
     }
 
     // 填充查询条件
-    searchForm.setFieldsValue(conditions);
+    searchForm.setFieldsValue(processedConditions);
 
     // 使用 setTimeout 确保表单值更新后再计算
     setTimeout(() => {
@@ -610,16 +845,76 @@ const PartsManagement: React.FC = () => {
     setPagination((prev) => ({ ...prev, current: 1 }));
     fetchData({ ...conditions, page: 1 });
 
-    message.success("已加载查询条件并执行查询");
+    message.success(`已加载查询方案: ${name}`);
+  };
+
+  // 切换到全部查询条件
+  const handleLoadAllFields = () => {
+    setCurrentScheme(ALL_FIELDS_SCHEME);
+    setSearchFields(defaultSearchFields);
+    searchForm.resetFields();
+    setFilledCount(0);
+    setSelectedFieldNames([]); // 清空选中的字段
+    message.success("已切换到全部查询条件");
+  };
+
+  // 处理查询方案拖拽排序
+  const handleSchemeReorder = (oldIndex: number, newIndex: number) => {
+    const newSearches = arrayMove(savedSearches, oldIndex, newIndex);
+    setSavedSearches(newSearches);
+    localStorage.setItem("partsManagement_savedSearches", JSON.stringify(newSearches));
   };
 
   // 删除已保存的查询条件
   const handleDeleteSearch = (index: number) => {
+    const deletedSearch = savedSearches[index];
     const updated = savedSearches.filter((_, i) => i !== index);
     setSavedSearches(updated);
     localStorage.setItem("partsManagement_savedSearches", JSON.stringify(updated));
+
+    // 如果删除的是当前方案，切换到"全部查询条件"
+    if (deletedSearch.name === currentScheme) {
+      setCurrentScheme(ALL_FIELDS_SCHEME);
+      setSearchFields(defaultSearchFields);
+      searchForm.resetFields();
+      message.info("已切换到全部查询条件");
+    }
+
+    // 如果删除的是默认方案，清除默认方案设置
+    if (deletedSearch.name === defaultScheme) {
+      setDefaultScheme(null);
+      localStorage.removeItem("partsManagement_defaultScheme");
+    }
+
     message.success("已删除");
   };
+
+  // 设置默认查询方案
+  const handleSetDefaultScheme = (schemeName: string) => {
+    setDefaultScheme(schemeName);
+    localStorage.setItem("partsManagement_defaultScheme", schemeName);
+    message.success(`已设置"${schemeName}"为默认方案`);
+  };
+
+  // 取消默认查询方案
+  const handleCancelDefaultScheme = () => {
+    setDefaultScheme(null);
+    localStorage.removeItem("partsManagement_defaultScheme");
+    message.success("已取消默认方案");
+  };
+
+  // 页面加载时自动应用默认方案
+  useEffect(() => {
+    if (defaultScheme && savedSearches.length > 0) {
+      const defaultSearch = savedSearches.find((s) => s.name === defaultScheme);
+      if (defaultSearch) {
+        // 延迟加载，确保其他初始化完成
+        setTimeout(() => {
+          handleLoadSearch(defaultSearch);
+        }, 100);
+      }
+    }
+  }, [defaultScheme, savedSearches.length]); // 只在defaultScheme或savedSearches加载完成时触发
 
 
   // 尺寸弹框状态
@@ -696,8 +991,20 @@ const PartsManagement: React.FC = () => {
   // 搜索
   const handleSearch = () => {
     const values = searchForm.getFieldsValue();
+
+    // 处理日期范围
+    const searchParams = { ...values };
+    if (values.productionDate && Array.isArray(values.productionDate) && values.productionDate.length === 2) {
+      const [start, end] = values.productionDate;
+      if (start && end && typeof start.format === 'function' && typeof end.format === 'function') {
+        searchParams.productionDateStart = start.format('YYYY-MM-DD');
+        searchParams.productionDateEnd = end.format('YYYY-MM-DD');
+      }
+      delete searchParams.productionDate;
+    }
+
     setPagination((prev) => ({ ...prev, current: 1 }));
-    fetchData({ ...values, page: 1 });
+    fetchData({ ...searchParams, page: 1 });
   };
 
   // 重置
@@ -706,6 +1013,9 @@ const PartsManagement: React.FC = () => {
     setSortParams({});
     setPagination((prev) => ({ ...prev, current: 1 }));
     setFilledCount(0); // 重置计数
+    setCurrentScheme(ALL_FIELDS_SCHEME); // 切换到全部查询条件
+    setSearchFields(defaultSearchFields); // 恢复所有字段
+    setSelectedFieldNames([]); // 清空选中的字段
     fetchData({ page: 1, sortField: undefined, sortOrder: undefined });
   };
 
@@ -1235,7 +1545,7 @@ const PartsManagement: React.FC = () => {
     { name: "level", label: "等级", type: "select", options: levelOptions },
     { name: "color", label: "颜色", type: "input" },
     { name: "unit", label: "单位", type: "input" },
-    { name: "productionDate", label: "生产日期", type: "input" },
+    { name: "productionDate", label: "生产日期", type: "dateRange" },
     { name: "validityPeriod", label: "有效期(月)", type: "number" },
     { name: "version", label: "版本", type: "input" },
     { name: "safetyStock", label: "安全库存", type: "number" },
@@ -1253,12 +1563,25 @@ const PartsManagement: React.FC = () => {
   const [isEditingFields, setIsEditingFields] = useState(false);
   const [searchFields, setSearchFields] = useState(defaultSearchFields);
 
+  // 选中的字段（用于"全部查询条件"模式下保存查询方案）
+  const [selectedFieldNames, setSelectedFieldNames] = useState<string[]>([]);
+
   // 从 localStorage 加载自定义字段配置
   useEffect(() => {
     const saved = localStorage.getItem("partsManagement_searchFields");
     if (saved) {
       try {
-        setSearchFields(JSON.parse(saved));
+        const savedFields = JSON.parse(saved);
+        // 更新localStorage中的旧配置，将生产日期字段的type改为dateRange
+        const updatedFields = savedFields.map((field: any) => {
+          if (field.name === 'productionDate' && field.type === 'input') {
+            return { ...field, type: 'dateRange' };
+          }
+          return field;
+        });
+        setSearchFields(updatedFields);
+        // 保存更新后的配置
+        localStorage.setItem("partsManagement_searchFields", JSON.stringify(updatedFields));
       } catch (e) {
         console.error("Failed to load search fields:", e);
       }
@@ -1268,7 +1591,23 @@ const PartsManagement: React.FC = () => {
   // 保存字段配置到 localStorage
   const saveFieldsConfig = (fields: typeof defaultSearchFields) => {
     setSearchFields(fields);
-    localStorage.setItem("partsManagement_searchFields", JSON.stringify(fields));
+
+    // 如果当前是某个查询方案（不是"全部查询条件"），需要更新该方案的字段配置
+    if (currentScheme !== ALL_FIELDS_SCHEME) {
+      const schemeIndex = savedSearches.findIndex((s) => s.name === currentScheme);
+      if (schemeIndex !== -1) {
+        const updatedSearches = [...savedSearches];
+        updatedSearches[schemeIndex] = {
+          ...updatedSearches[schemeIndex],
+          fields: fields.map((f) => f.name),
+        };
+        setSavedSearches(updatedSearches);
+        localStorage.setItem("partsManagement_savedSearches", JSON.stringify(updatedSearches));
+      }
+    } else {
+      // 如果是"全部查询条件"，保存到全局配置
+      localStorage.setItem("partsManagement_searchFields", JSON.stringify(fields));
+    }
   };
 
   // 拖拽传感器
@@ -1283,6 +1622,10 @@ const PartsManagement: React.FC = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   // 当前悬停的目标字段
   const [overId, setOverId] = useState<string | null>(null);
+
+  // 查询方案拖拽状态
+  const [activeSchemeDragId, setActiveSchemeDragId] = useState<string | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // 处理拖拽开始
   const handleDragStart = (event: DragStartEvent) => {
@@ -1314,17 +1657,32 @@ const PartsManagement: React.FC = () => {
     setOverId(null);
   };
 
+  // 处理查询方案拖拽开始
+  const handleSchemeDragStart = (event: DragStartEvent) => {
+    setActiveSchemeDragId(event.active.id as string);
+  };
+
+  // 处理查询方案拖拽结束
+  const handleSchemeDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = parseInt((active.id as string).replace('scheme-', ''));
+      const newIndex = parseInt((over.id as string).replace('scheme-', ''));
+      handleSchemeReorder(oldIndex, newIndex);
+    }
+    setActiveSchemeDragId(null);
+  };
+
+  // 处理查询方案拖拽取消
+  const handleSchemeDragCancel = () => {
+    setActiveSchemeDragId(null);
+  };
+
   // 删除字段
   const handleDeleteField = (fieldName: string) => {
     const newFields = searchFields.filter((f) => f.name !== fieldName);
     saveFieldsConfig(newFields);
     message.success("已删除字段");
-  };
-
-  // 恢复默认字段配置
-  const handleRestoreFields = () => {
-    saveFieldsConfig(defaultSearchFields);
-    message.success("已恢复默认配置");
   };
 
   // 展开时显示全部字段，收起时也显示全部字段（通过CSS控制显示行数）
@@ -1351,6 +1709,114 @@ const PartsManagement: React.FC = () => {
           flexShrink: 0,
         }}
       >
+        {/* 查询方案下拉菜单 - 显示在左上角 */}
+        <div style={{ marginBottom: 12 }}>
+          <Dropdown
+            open={dropdownOpen}
+            onOpenChange={setDropdownOpen}
+            dropdownRender={() => (
+              <div
+                style={{
+                  backgroundColor: "#fff",
+                  borderRadius: 6,
+                  boxShadow: "0 3px 6px -4px rgba(0,0,0,.12), 0 6px 16px 0 rgba(0,0,0,.08), 0 9px 28px 8px rgba(0,0,0,.05)",
+                  minWidth: 240,
+                }}
+              >
+                {/* 全部查询条件 - 固定不可拖拽 */}
+                <div
+                  onClick={() => {
+                    handleLoadAllFields();
+                    setDropdownOpen(false);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "5px 12px",
+                    cursor: "pointer",
+                    backgroundColor: "transparent",
+                    transition: "background-color 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#f5f5f5";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
+                  {currentScheme === ALL_FIELDS_SCHEME ? (
+                    <CheckOutlined style={{ color: "#1890ff", fontSize: 14 }} />
+                  ) : (
+                    <div style={{ width: 14 }}></div>
+                  )}
+                  <span
+                    style={{
+                      fontWeight: currentScheme === ALL_FIELDS_SCHEME ? 600 : 400,
+                    }}
+                  >
+                    {ALL_FIELDS_SCHEME}
+                  </span>
+                </div>
+
+                {/* 分隔线 */}
+                {savedSearches.length > 0 && <Divider style={{ margin: "4px 0" }} />}
+
+                {/* 可拖拽的查询方案列表 */}
+                {savedSearches.length > 0 && (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={handleSchemeDragStart}
+                    onDragEnd={handleSchemeDragEnd}
+                    onDragCancel={handleSchemeDragCancel}
+                  >
+                    <SortableContext
+                      items={savedSearches.map((_, index) => `scheme-${index}`)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {savedSearches.map((search, index) => (
+                        <SortableSchemeItem
+                          key={`scheme-${index}`}
+                          search={search}
+                          index={index}
+                          currentScheme={currentScheme}
+                          defaultScheme={defaultScheme}
+                          onLoad={() => {
+                            handleLoadSearch(search);
+                            setDropdownOpen(false);
+                          }}
+                          onSetDefault={() => handleSetDefaultScheme(search.name)}
+                          onCancelDefault={handleCancelDefaultScheme}
+                          onDelete={() => handleDeleteSearch(index)}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                )}
+              </div>
+            )}
+            placement="bottomLeft"
+            trigger={["click"]}
+          >
+            <Tag
+              color="blue"
+              style={{
+                fontSize: 14,
+                padding: "4px 12px",
+                cursor: "pointer",
+              }}
+            >
+              {currentScheme === defaultScheme &&
+              currentScheme !== ALL_FIELDS_SCHEME ? (
+                <PushpinFilled />
+              ) : null}{" "}
+              当前方案: {currentScheme}{" "}
+              <DownOutlined style={{ fontSize: 10 }} />
+            </Tag>
+          </Dropdown>
+        </div>
+
         <Form
           form={searchForm}
           layout="vertical"
@@ -1386,6 +1852,16 @@ const PartsManagement: React.FC = () => {
                       onDelete={() => handleDeleteField(field.name)}
                       isActiveField={activeId === field.name}
                       isOverField={overId === field.name}
+                      showCheckbox={currentScheme === ALL_FIELDS_SCHEME && isEditingFields}
+                      isChecked={selectedFieldNames.includes(field.name)}
+                      onCheckChange={(checked) => {
+                        if (checked) {
+                          setSelectedFieldNames([...selectedFieldNames, field.name]);
+                        } else {
+                          setSelectedFieldNames(selectedFieldNames.filter((name) => name !== field.name));
+                        }
+                      }}
+                      disableInput={currentScheme === ALL_FIELDS_SCHEME && isEditingFields}
                     />
                   ))}
                 </Row>
@@ -1444,86 +1920,72 @@ const PartsManagement: React.FC = () => {
                     icon={<SaveOutlined />}
                     onClick={() => {
                       setIsEditingFields(false);
+                      setSelectedFieldNames([]); // 清空选中的字段
+
+                      // 如果当前不是"全部查询条件"，需要保存查询条件的值到方案中
+                      if (currentScheme !== ALL_FIELDS_SCHEME) {
+                        const schemeIndex = savedSearches.findIndex((s) => s.name === currentScheme);
+                        if (schemeIndex !== -1) {
+                          const conditions = searchForm.getFieldsValue();
+
+                          // 处理日期范围，转换为字符串以便保存到localStorage
+                          const processedConditions = { ...conditions };
+                          if (processedConditions.productionDate && Array.isArray(processedConditions.productionDate)) {
+                            processedConditions.productionDate = processedConditions.productionDate.map((date: any) => {
+                              if (date && typeof date.format === 'function') {
+                                return date.format('YYYY-MM-DD');
+                              }
+                              return date;
+                            });
+                          }
+
+                          const updatedSearches = [...savedSearches];
+                          updatedSearches[schemeIndex] = {
+                            ...updatedSearches[schemeIndex],
+                            conditions: processedConditions,
+                          };
+                          setSavedSearches(updatedSearches);
+                          localStorage.setItem("partsManagement_savedSearches", JSON.stringify(updatedSearches));
+                        }
+                      }
+
                       message.success("已保存字段配置");
                     }}
                     style={{ marginLeft: 8 }}
                   >
                     完成编辑
                   </Button>
-                  <Button
-                    icon={<UndoOutlined />}
-                    onClick={handleRestoreFields}
-                  >
-                    恢复默认
-                  </Button>
                 </>
               ) : (
-                <Button
-                  icon={<EditOutlined />}
-                  onClick={() => {
-                    setIsEditingFields(true);
-                    setExpanded(true); // 编辑时自动展开
-                  }}
-                  style={{ marginLeft: 8 }}
-                >
-                  编辑字段
-                </Button>
+                <>
+                  <Button
+                    icon={<EditOutlined />}
+                    onClick={() => {
+                      setIsEditingFields(true);
+                      setExpanded(true); // 编辑时自动展开
+                      // 如果是"全部查询条件"，不默认选中任何字段
+                      if (currentScheme === ALL_FIELDS_SCHEME) {
+                        setSelectedFieldNames([]);
+                      }
+                    }}
+                    style={{ marginLeft: 8 }}
+                  >
+                    编辑字段
+                  </Button>
+                </>
               )}
             </Space>
             <Space>
-              {/* 查询方案下拉菜单 */}
-              <Dropdown
-                menu={{
-                  items: [
-                    // 保存当前查询条件
-                    {
-                      key: "save",
-                      label: "保存当前查询条件",
-                      icon: <SaveOutlined />,
-                      onClick: () => setSaveModalVisible(true),
-                    },
-                    // 分隔线
-                    savedSearches.length > 0 && {
-                      type: "divider",
-                    },
-                    // 已保存的查询条件列表
-                    ...savedSearches.map((search, index) => ({
-                      key: `search-${index}`,
-                      label: (
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            minWidth: 200,
-                          }}
-                        >
-                          <span style={{ flex: 1 }}>{search.name}</span>
-                          <DeleteOutlined
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteSearch(index);
-                            }}
-                            style={{
-                              color: "#ff4d4f",
-                              marginLeft: 8,
-                              cursor: "pointer",
-                            }}
-                          />
-                        </div>
-                      ),
-                      icon: <StarOutlined />,
-                      onClick: () => handleLoadSearch(search.conditions),
-                    })),
-                  ].filter(Boolean),
-                }}
-                placement="bottomRight"
-                disabled={isEditingFields}
-              >
-                <Button icon={<StarOutlined />} disabled={isEditingFields}>
-                  查询方案 <DownOutlined />
+              {/* 保存查询方案按钮 - 只在"全部查询条件"时显示 */}
+              {currentScheme === ALL_FIELDS_SCHEME && (
+                <Button
+                  icon={<SaveOutlined />}
+                  onClick={() => setSaveModalVisible(true)}
+                  disabled={isEditingFields && selectedFieldNames.length === 0}
+                >
+                  保存查询方案
                 </Button>
-              </Dropdown>
+              )}
               <Button
                 type="primary"
                 icon={<SearchOutlined />}
