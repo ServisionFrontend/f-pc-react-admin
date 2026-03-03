@@ -87,7 +87,7 @@ const Dashboard = () => {
             <Row gutter={[24, 24]}>
                 {stats.map((stat, index) => (
                     <Col xs={24} sm={12} lg={6} key={index}>
-                        <Card className="premium-card" bordered={false} bodyStyle={{ padding: '24px' }}>
+                        <Card className="premium-card" variant="borderless" styles={{ body: { padding: '24px' } }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                                 <div style={{
                                     width: 48,
@@ -110,7 +110,7 @@ const Dashboard = () => {
                                 title={<span style={{ color: '#64748b', fontWeight: 500, fontSize: '14px' }}>{stat.title}</span>}
                                 value={stat.value}
                                 precision={stat.suffix === '%' ? 1 : 0}
-                                valueStyle={{ fontWeight: 700, fontSize: '28px', color: '#1e293b' }}
+                                styles={{ content: { fontWeight: 700, fontSize: '28px', color: '#1e293b' } }}
                                 prefix={stat.prefix}
                                 suffix={<span style={{ fontSize: '16px', color: '#94a3b8', marginLeft: 4 }}>{stat.suffix}</span>}
                             />
@@ -124,7 +124,7 @@ const Dashboard = () => {
                     <Card
                         title="最近操作日志"
                         className="premium-card"
-                        bordered={false}
+                        variant="borderless"
                         extra={<Tag color="blue" style={{ borderRadius: 12, padding: '0 12px' }}>实时监控</Tag>}
                     >
                         <Table

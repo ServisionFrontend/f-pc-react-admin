@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export interface TabItem {
   key: string;
@@ -31,12 +31,39 @@ interface TabsProviderProps {
   children: ReactNode;
 }
 
+// 路由配置映射
+export const routeConfig: Record<string, { label: string; closable: boolean }> = {
+  '/': { label: '首页', closable: false },
+  '/users': { label: '用户管理', closable: true },
+  '/roles': { label: '角色管理', closable: true },
+  '/parts': { label: '配件管理', closable: true },
+};
+
 export const TabsProvider = ({ children }: TabsProviderProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [tabs, setTabs] = useState<TabItem[]>([
-    { key: '/', label: '仪表盘', closable: false }
+    { key: '/', label: '首页', closable: false }
   ]);
   const [activeKey, setActiveKey] = useState<string>('/');
+
+  // 初始化时根据当前路由同步 tab 状态
+  useEffect(() => {
+    const currentPath = location.pathname;
+    const config = routeConfig[currentPath];
+
+    if (config && currentPath !== '/') {
+      // 如果当前路由不是首页，且在配置中存在，则添加对应的 tab
+      setTabs((prevTabs) => {
+        const exists = prevTabs.find((t) => t.key === currentPath);
+        if (!exists) {
+          return [...prevTabs, { key: currentPath, label: config.label, closable: config.closable }];
+        }
+        return prevTabs;
+      });
+      setActiveKey(currentPath);
+    }
+  }, []); // 只在组件挂载时执行一次
 
   const addTab = useCallback((tab: TabItem) => {
     setTabs((prevTabs) => {

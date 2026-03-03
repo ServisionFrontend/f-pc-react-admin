@@ -4,7 +4,6 @@ import type { MenuProps } from 'antd';
 import {
   DashboardOutlined,
   UserOutlined,
-  ShoppingOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   BellOutlined,
@@ -15,19 +14,10 @@ import {
   CarOutlined,
 } from '@ant-design/icons';
 import { useLocation, Outlet } from 'react-router-dom';
-import { useTabsContext } from '../contexts/TabsContext';
+import { useTabsContext, routeConfig } from '../contexts/TabsContext';
 import TabBar from '../components/TabBar';
 
 const { Header, Sider, Content } = Layout;
-
-// 路由配置映射
-const routeConfig: Record<string, { label: string; closable: boolean }> = {
-  '/': { label: '仪表盘', closable: false },
-  '/users': { label: '用户管理', closable: true },
-  '/roles': { label: '角色管理', closable: true },
-  '/products': { label: '产品管理', closable: true },
-  '/parts': { label: '配件管理', closable: true },
-};
 
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -38,7 +28,7 @@ const MainLayout = () => {
     {
       key: '/',
       icon: <DashboardOutlined />,
-      label: '仪表盘',
+      label: '首页',
     },
     {
       key: '/users',
@@ -49,11 +39,6 @@ const MainLayout = () => {
       key: '/roles',
       icon: <TeamOutlined />,
       label: '角色管理',
-    },
-    {
-      key: '/products',
-      icon: <ShoppingOutlined />,
-      label: '产品管理',
     },
     {
       key: '/parts',

@@ -2,10 +2,9 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/UserManagement';
-import ProductManagement from './pages/ProductManagement';
 import RoleManagement from './pages/RoleManagement';
 import PartsManagement from './pages/PartsManagement';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, App as AntdApp } from 'antd';
 import { TabsProvider } from './contexts/TabsContext';
 
 function App() {
@@ -95,19 +94,20 @@ function App() {
         },
       }}
     >
-      <BrowserRouter>
-        <TabsProvider>
-          <Routes>
-            <Route path="/" element={<MainLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="users" element={<UserManagement />} />
-              <Route path="roles" element={<RoleManagement />} />
-              <Route path="products" element={<ProductManagement />} />
-              <Route path="parts" element={<PartsManagement />} />
-            </Route>
-          </Routes>
-        </TabsProvider>
-      </BrowserRouter>
+      <AntdApp style={{ height: '100%' }}>
+        <BrowserRouter>
+          <TabsProvider>
+            <Routes>
+              <Route path="/" element={<MainLayout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="users" element={<UserManagement />} />
+                <Route path="roles" element={<RoleManagement />} />
+                <Route path="parts" element={<PartsManagement />} />
+              </Route>
+            </Routes>
+          </TabsProvider>
+        </BrowserRouter>
+      </AntdApp>
     </ConfigProvider>
   );
 }

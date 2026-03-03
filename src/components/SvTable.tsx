@@ -210,7 +210,7 @@ const ResizableTitle = (props: any) => {
                                 className: "sv-table-header-dropdown-menu"
                             }}
                             trigger={["click"]}
-                            destroyPopupOnHide
+                            destroyOnHidden
                             getPopupContainer={() => resizeContext?.tableContainerRef?.current || document.body}
                         >
                             <div className="column-header-dropdown-wrapper" style={{ width: "100%", height: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}>

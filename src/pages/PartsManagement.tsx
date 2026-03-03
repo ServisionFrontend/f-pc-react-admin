@@ -10,7 +10,7 @@ import {
   Tag,
   Popconfirm,
   Form,
-  message,
+  App,
   Row,
   Col,
   Tooltip,
@@ -87,6 +87,7 @@ const SortableSchemeItem: React.FC<SortableSchemeItemProps> = ({
   onDelete,
   onRename,
 }) => {
+  const { message } = App.useApp();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(search.name);
   const inputRef = useRef<any>(null);
@@ -483,6 +484,7 @@ const SizeSelectModal: React.FC<SizeSelectModalProps> = ({
   onCancel,
   onOk,
 }) => {
+  const { message } = App.useApp();
   const [selectedSizeKey, setSelectedSizeKey] = useState<React.Key[]>([]);
   const [searchText, setSearchText] = useState("");
   const [dataSource] = useState([
@@ -549,7 +551,7 @@ const SizeSelectModal: React.FC<SizeSelectModalProps> = ({
       onCancel={onCancel}
       onOk={handleOk}
       width={600}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ marginBottom: 16, display: "flex", gap: 8 }}>
         <Input
@@ -672,6 +674,7 @@ const fragileOptions = [
 const ALL_FIELDS_SCHEME = "全部";
 
 const PartsManagement: React.FC = () => {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
   const [data, setData] = useState<Part[]>([]);
@@ -1850,7 +1853,7 @@ const PartsManagement: React.FC = () => {
           <Dropdown
             open={dropdownOpen}
             onOpenChange={setDropdownOpen}
-            dropdownRender={() => (
+            popupRender={() => (
               <div
                 style={{
                   backgroundColor: "#fff",
@@ -2062,7 +2065,7 @@ const PartsManagement: React.FC = () => {
                   <Button
                     onClick={() => setExpanded(!expanded)}
                     icon={expanded ? <UpOutlined /> : <DownOutlined />}
-                    iconPosition="start"
+                    iconPlacement="start"
                     disabled={isEditingFields}
                     style={{ marginRight: 8 }}
                   >
@@ -2114,7 +2117,7 @@ const PartsManagement: React.FC = () => {
                     }}
                     style={{ marginLeft: 8 }}
                   >
-                    完成编辑
+                    保成编辑
                   </Button>
                   <Button
                     icon={<CloseOutlined />}
@@ -2192,7 +2195,7 @@ const PartsManagement: React.FC = () => {
         }}
         okText="保存"
         cancelText="取消"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form layout="vertical">
           <Form.Item label="查询条件名称" required>
