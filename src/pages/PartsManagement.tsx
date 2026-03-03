@@ -33,7 +33,6 @@ import {
   DownOutlined,
   UpOutlined,
   PushpinOutlined,
-  UndoOutlined,
   HolderOutlined,
   CheckOutlined,
   PushpinFilled,
@@ -134,11 +133,7 @@ const SortableSchemeItem: React.FC<SortableSchemeItemProps> = ({
     setIsEditing(false);
   };
 
-  // 取消编辑
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setEditName(search.name);
-  };
+
 
   return (
     <div
@@ -182,7 +177,7 @@ const SortableSchemeItem: React.FC<SortableSchemeItemProps> = ({
           {!isEditing && (
             <>
               {currentScheme === search.name ? (
-                <CheckOutlined style={{ color: "#1890ff", fontSize: 14 }} />
+                <CheckOutlined style={{ color: "#4E5358", fontSize: 14 }} />
               ) : search.name === defaultScheme ? (
                 <PushpinFilled style={{ color: "#faad14", fontSize: 14 }} />
               ) : (
@@ -218,7 +213,7 @@ const SortableSchemeItem: React.FC<SortableSchemeItemProps> = ({
             <>
               {/* 编辑按钮 */}
               <EditOutlined
-                style={{ color: "#1890ff", fontSize: 16, cursor: "pointer" }}
+                style={{ color: "#4E5358", fontSize: 16, cursor: "pointer" }}
                 onClick={handleStartEdit}
                 title="重命名"
               />
@@ -320,7 +315,7 @@ const SortableField: React.FC<SortableFieldProps> = ({
         style={{
           position: "relative",
           opacity: isActiveField ? 0 : 1, // 拖动的字段完全隐藏
-          border: isOverField ? "2px dashed #1890ff" : "none", // 只在目标位置显示虚线
+          border: isOverField ? "2px dashed #4E5358" : "none", // 只在目标位置显示虚线
           borderRadius: 6,
           padding: isOverField ? 4 : 0,
           backgroundColor: isOverField ? "#f0f5ff" : "transparent", // 只在目标位置显示背景
@@ -335,7 +330,7 @@ const SortableField: React.FC<SortableFieldProps> = ({
                 <HolderOutlined
                   {...attributes}
                   {...listeners}
-                  style={{ cursor: "grab", color: "#1890ff", fontSize: 14 }}
+                  style={{ cursor: "grab", color: "#4E5358", fontSize: 14 }}
                 />
               )}
               <span>{field.label}</span>
@@ -739,7 +734,7 @@ const PartsManagement: React.FC = () => {
     selectedRowKeys,
     onChange: onSelectChange,
     // 编辑状态下禁用选择
-    getCheckboxProps: (record: Part) => ({
+    getCheckboxProps: () => ({
       disabled: editingKey !== "",
     }),
   };
@@ -767,7 +762,6 @@ const PartsManagement: React.FC = () => {
     Array<{ name: string; conditions: any; fields?: string[]; isDefault?: boolean }>
   >([]);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
-  const [searchName, setSearchName] = useState("");
   const [currentScheme, setCurrentScheme] = useState<string>(ALL_FIELDS_SCHEME); // 当前选中的查询方案名称，默认为"全部查询条件"
   const [defaultScheme, setDefaultScheme] = useState<string | null>(null); // 默认查询方案名称
 
@@ -853,7 +847,6 @@ const PartsManagement: React.FC = () => {
     localStorage.setItem("partsManagement_savedSearches", JSON.stringify(updated));
     message.success("查询条件已保存");
     setSaveModalVisible(false);
-    setSearchName(""); // 清空state（虽然不再使用，但保留以防其他地方使用）
 
     // 清空选中的字段
     setSelectedFieldNames([]);
@@ -940,8 +933,6 @@ const PartsManagement: React.FC = () => {
     // 自动执行查询
     setPagination((prev) => ({ ...prev, current: 1 }));
     fetchData({ ...conditions, page: 1 });
-
-    message.success(`已加载查询方案: ${name}`);
   };
 
   // 切换到全部查询条件
@@ -958,7 +949,6 @@ const PartsManagement: React.FC = () => {
     searchForm.resetFields();
     setFilledCount(0);
     setSelectedFieldNames([]); // 清空选中的字段
-    message.success("已切换到全部查询条件");
   };
 
   // 处理查询方案拖拽排序
@@ -980,7 +970,6 @@ const PartsManagement: React.FC = () => {
       setCurrentScheme(ALL_FIELDS_SCHEME);
       setSearchFields(defaultSearchFields);
       searchForm.resetFields();
-      message.info("已切换到全部查询条件");
     }
 
     // 如果删除的是默认方案，清除默认方案设置
@@ -1762,8 +1751,7 @@ const PartsManagement: React.FC = () => {
   // 当前悬停的目标字段
   const [overId, setOverId] = useState<string | null>(null);
 
-  // 查询方案拖拽状态
-  const [activeSchemeDragId, setActiveSchemeDragId] = useState<string | null>(null);
+
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // 处理拖拽开始
@@ -1797,8 +1785,8 @@ const PartsManagement: React.FC = () => {
   };
 
   // 处理查询方案拖拽开始
-  const handleSchemeDragStart = (event: DragStartEvent) => {
-    setActiveSchemeDragId(event.active.id as string);
+  const handleSchemeDragStart = () => {
+    // 拖拽开始逻辑
   };
 
   // 处理查询方案拖拽结束
@@ -1809,12 +1797,11 @@ const PartsManagement: React.FC = () => {
       const newIndex = parseInt((over.id as string).replace('scheme-', ''));
       handleSchemeReorder(oldIndex, newIndex);
     }
-    setActiveSchemeDragId(null);
   };
 
   // 处理查询方案拖拽取消
   const handleSchemeDragCancel = () => {
-    setActiveSchemeDragId(null);
+    // 拖拽取消逻辑
   };
 
   // 删除字段
@@ -1848,113 +1835,134 @@ const PartsManagement: React.FC = () => {
           flexShrink: 0,
         }}
       >
-        {/* 查询方案下拉菜单 - 显示在左上角 */}
-        <div style={{ marginBottom: 12 }}>
-          <Dropdown
-            open={dropdownOpen}
-            onOpenChange={setDropdownOpen}
-            popupRender={() => (
-              <div
-                style={{
-                  backgroundColor: "#fff",
-                  borderRadius: 6,
-                  boxShadow: "0 3px 6px -4px rgba(0,0,0,.12), 0 6px 16px 0 rgba(0,0,0,.08), 0 9px 28px 8px rgba(0,0,0,.05)",
-                  minWidth: 240,
-                }}
-              >
-                {/* 全部查询条件 - 固定不可拖拽 */}
+        {/* 查询方案下拉菜单 - 显示在顶部的头部区域 */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          marginBottom: 16,
+          paddingBottom: 12,
+          borderBottom: "1px solid #f0f0f0"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{
+              width: 3,
+              height: 14,
+              backgroundColor: "#1890ff",
+              borderRadius: 2
+            }} />
+            <span style={{ fontWeight: 600, fontSize: 14, color: "#262626", marginRight: 4 }}>查询模板:</span>
+            <Dropdown
+              open={dropdownOpen}
+              onOpenChange={setDropdownOpen}
+              popupRender={() => (
                 <div
-                  onClick={() => {
-                    handleLoadAllFields();
-                    setDropdownOpen(false);
-                  }}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "5px 12px",
-                    cursor: "pointer",
-                    backgroundColor: "transparent",
-                    transition: "background-color 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#f5f5f5";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "transparent";
+                    backgroundColor: "#fff",
+                    borderRadius: 6,
+                    boxShadow: "0 3px 6px -4px rgba(0,0,0,.12), 0 6px 16px 0 rgba(0,0,0,.08), 0 9px 28px 8px rgba(0,0,0,.05)",
+                    minWidth: 240,
                   }}
                 >
-                  {currentScheme === ALL_FIELDS_SCHEME ? (
-                    <CheckOutlined style={{ color: "#1890ff", fontSize: 14 }} />
-                  ) : (
-                    <div style={{ width: 14 }}></div>
-                  )}
-                  <span
+                  {/* 全部查询条件 - 固定不可拖拽 */}
+                  <div
+                    onClick={() => {
+                      handleLoadAllFields();
+                      setDropdownOpen(false);
+                    }}
                     style={{
-                      fontWeight: currentScheme === ALL_FIELDS_SCHEME ? 600 : 400,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "5px 12px",
+                      cursor: "pointer",
+                      backgroundColor: "transparent",
+                      transition: "background-color 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "#f5f5f5";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
                     }}
                   >
-                    {ALL_FIELDS_SCHEME}
-                  </span>
-                </div>
-
-                {/* 分隔线 */}
-                {savedSearches.length > 0 && <Divider style={{ margin: "4px 0" }} />}
-
-                {/* 可拖拽的查询方案列表 */}
-                {savedSearches.length > 0 && (
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragStart={handleSchemeDragStart}
-                    onDragEnd={handleSchemeDragEnd}
-                    onDragCancel={handleSchemeDragCancel}
-                  >
-                    <SortableContext
-                      items={savedSearches.map((_, index) => `scheme-${index}`)}
-                      strategy={verticalListSortingStrategy}
+                    {currentScheme === ALL_FIELDS_SCHEME ? (
+                      <CheckOutlined style={{ color: "#1890ff", fontSize: 14 }} />
+                    ) : (
+                      <div style={{ width: 14 }}></div>
+                    )}
+                    <span
+                      style={{
+                        fontWeight: currentScheme === ALL_FIELDS_SCHEME ? 600 : 400,
+                      }}
                     >
-                      {savedSearches.map((search, index) => (
-                        <SortableSchemeItem
-                          key={`scheme-${index}`}
-                          search={search}
-                          index={index}
-                          currentScheme={currentScheme}
-                          defaultScheme={defaultScheme}
-                          onLoad={() => {
-                            handleLoadSearch(search);
-                            setDropdownOpen(false);
-                          }}
-                          onSetDefault={() => handleSetDefaultScheme(search.name)}
-                          onCancelDefault={handleCancelDefaultScheme}
-                          onDelete={() => handleDeleteSearch(index)}
-                          onRename={(newName) => handleRenameScheme(index, newName)}
-                        />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
-                )}
-              </div>
-            )}
-            placement="bottomLeft"
-            trigger={["click"]}
-          >
-            <Tag
-              color="blue"
-              style={{
-                fontSize: 14,
-                padding: "4px 12px",
-                cursor: "pointer",
-              }}
+                      {ALL_FIELDS_SCHEME}
+                    </span>
+                  </div>
+
+                  {/* 分隔线 */}
+                  {savedSearches.length > 0 && <Divider style={{ margin: "4px 0" }} />}
+
+                  {/* 可拖拽的查询方案列表 */}
+                  {savedSearches.length > 0 && (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragStart={handleSchemeDragStart}
+                      onDragEnd={handleSchemeDragEnd}
+                      onDragCancel={handleSchemeDragCancel}
+                    >
+                      <SortableContext
+                        items={savedSearches.map((_, index) => `scheme-${index}`)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {savedSearches.map((search, index) => (
+                          <SortableSchemeItem
+                            key={`scheme-${index}`}
+                            search={search}
+                            index={index}
+                            currentScheme={currentScheme}
+                            defaultScheme={defaultScheme}
+                            onLoad={() => {
+                              handleLoadSearch(search);
+                              setDropdownOpen(false);
+                            }}
+                            onSetDefault={() => handleSetDefaultScheme(search.name)}
+                            onCancelDefault={handleCancelDefaultScheme}
+                            onDelete={() => handleDeleteSearch(index)}
+                            onRename={(newName) => handleRenameScheme(index, newName)}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  )}
+                </div>
+              )}
+              placement="bottomLeft"
+              trigger={["click"]}
             >
-              {currentScheme === defaultScheme &&
-                currentScheme !== ALL_FIELDS_SCHEME ? (
-                <PushpinFilled />
-              ) : null}{" "}
-              当前查询模板: {currentScheme}{" "}
-              <DownOutlined style={{ fontSize: 10 }} />
-            </Tag>
-          </Dropdown>
+              <div
+                style={{
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  backgroundColor: "#f5f5f5",
+                  transition: "all 0.3s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = "#e6f7ff"}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = "#f5f5f5"}
+              >
+                {currentScheme === defaultScheme &&
+                  currentScheme !== ALL_FIELDS_SCHEME ? (
+                  <PushpinFilled style={{ color: "#1890ff", fontSize: 12 }} />
+                ) : null}
+                <span style={{ fontWeight: 600, color: "#1890ff", fontSize: 13 }}>{currentScheme}</span>
+                <DownOutlined style={{ fontSize: 10, color: "#1890ff" }} />
+              </div>
+            </Dropdown>
+          </div>
         </div>
 
         <Form
@@ -2191,7 +2199,6 @@ const PartsManagement: React.FC = () => {
         onOk={handleSaveSearch}
         onCancel={() => {
           setSaveModalVisible(false);
-          setSearchName("");
         }}
         okText="保存"
         cancelText="取消"

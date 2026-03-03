@@ -275,7 +275,7 @@ const SvTable: React.FC<SvTableProps> = (props) => {
                         <Button
                             type="text"
                             icon={<EditOutlined />}
-                            style={{ color: '#4f46e5' }}
+                            style={{ color: '#4E5358' }}
                             onClick={() => svContext.openEditModal(record)}
                         />
                         <Popconfirm title="确定删除吗?" onConfirm={() => svContext.deleteItem(record.id || record.key)}>
@@ -396,7 +396,7 @@ const SvTable: React.FC<SvTableProps> = (props) => {
 
         const indicator = document.createElement("div");
         indicator.className = "column-resize-indicator";
-        indicator.style.cssText = `position: fixed; top: ${top}px; height: ${height}px; width: 2px; background: var(--primary-color, #4f46e5); z-index: 99999; pointer-events: none; left: ${startX}px;`;
+        indicator.style.cssText = `position: fixed; top: ${top}px; height: ${height}px; width: 2px; background: var(--primary-color, #4E5358); z-index: 99999; pointer-events: none; left: ${startX}px;`;
         document.body.appendChild(indicator);
         resizeIndicatorRef.current = indicator;
 
@@ -530,7 +530,7 @@ const SvTable: React.FC<SvTableProps> = (props) => {
                 .drag-indicator { position: absolute; top: -4px; bottom: -4px; width: 12px; z-index: 9999; pointer-events: none; display: none; flex-direction: column; align-items: center; justify-content: space-between; }
                 .drag-indicator-left { left: -6px; }
                 .drag-indicator-right { right: -6px; }
-                .drag-indicator-icon { color: #6E3DEB; font-size: 14px; line-height: 1; }
+                .drag-indicator-icon { color: #4E5358; font-size: 14px; line-height: 1; }
                 th.drag-over-left .drag-indicator-left { display: flex; }
                 th.drag-over-right .drag-indicator-right { display: flex; }
                 body.is-dragging-column .full-height-table th * { pointer-events: none !important; }
@@ -541,7 +541,7 @@ const SvTable: React.FC<SvTableProps> = (props) => {
                 .column-header-dropdown-wrapper { display: inline-flex; align-items: center; flex-shrink: 0; }
                 .column-header-content { flex: 1; overflow: hidden; min-width: 0; }
                 .column-header-dropdown-trigger { display: inline-flex; align-items: center; flex-shrink: 0; opacity: 0; transition: opacity 0.3s; cursor: pointer; font-size: 10px; color: #8c8c8c; padding: 2px 4px; line-height: 1; border-radius: 2px; }
-                .column-header-dropdown-trigger:hover { color: #1890ff; background: rgba(24, 144, 255, 0.06); }
+                .column-header-dropdown-trigger:hover { color: #4E5358; background: rgba(78, 83, 88, 0.06); }
                 .full-height-table th:hover .column-header-dropdown-trigger { opacity: 1; }
                 .column-header-dropdown-trigger.ant-dropdown-open, .ant-dropdown-open .column-header-dropdown-trigger, .column-header-dropdown-wrapper.ant-dropdown-open .column-header-dropdown-trigger { opacity: 1; }
                 .full-height-table th.ant-table-cell { position: relative; overflow: hidden; }
