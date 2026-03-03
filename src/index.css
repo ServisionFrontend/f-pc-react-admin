@@ -156,61 +156,66 @@ body {
 
 /* Button Customization */
 .ant-btn-primary {
-  background: var(--premium-gradient) !important;
+  background: linear-gradient(135deg, #4E5358 0%, #5a6066 100%) !important;
   border: none !important;
   font-weight: 500;
-  border-radius: 6px !important;
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 2px 4px rgba(78, 83, 88, 0.2) !important;
   transition: all 0.2s ease;
 }
 
 .ant-btn-primary:hover {
-  opacity: 0.95;
-  box-shadow: 0 3px 8px rgba(79, 70, 229, 0.4) !important;
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(78, 83, 88, 0.3) !important;
 }
 
 .ant-btn-default {
-  border-radius: 6px !important;
-  border-color: #e5e7eb !important;
+  border-radius: 4px !important;
+  border-color: #d1d5db !important;
   color: #4b5563 !important;
+  background: #ffffff !important;
+  transition: all 0.2s ease;
 }
 
 .ant-btn-default:hover {
   border-color: var(--primary-color) !important;
   color: var(--primary-color) !important;
+  background: #f9fafb !important;
 }
 
 /* Table Customization */
 .ant-table-wrapper {
   background: #fff;
   border-radius: 8px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 }
 
 .ant-table-thead>tr>th {
-  background: #fafafa !important;
-  color: #6b7280;
+  background: linear-gradient(to bottom, #fafafa, #f5f5f5) !important;
+  color: #374151;
   font-weight: 600;
   font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid #e5e7eb !important;
-  padding: 4px 8px !important;
+  letter-spacing: 0.02em;
+  border-bottom: 2px solid #e5e7eb !important;
+  padding: 8px 12px !important;
+  white-space: nowrap;
 }
 
 /* 彻底修复表头右上角"口子" —— 让表头容器和行都有背景色，填充固定列之间的空隙 */
 .full-height-table .ant-table-header {
-  background: #fafafa !important;
+  background: linear-gradient(to bottom, #fafafa, #f5f5f5) !important;
 }
 
 .full-height-table .ant-table-thead>tr {
-  background: #fafafa !important;
+  background: linear-gradient(to bottom, #fafafa, #f5f5f5) !important;
 }
 
 /* 滚动条占位单元格样式 */
 .full-height-table .ant-table-thead>tr>th.ant-table-cell-scrollbar {
   padding: 0 !important;
-  background: #fafafa !important;
-  border-bottom: 1px solid #e5e7eb !important;
+  background: linear-gradient(to bottom, #fafafa, #f5f5f5) !important;
+  border-bottom: 2px solid #e5e7eb !important;
   border-top: none !important;
   border-right: none !important;
   border-left: none !important;
@@ -236,13 +241,14 @@ body {
 
 .ant-table-tbody>tr>td {
   border-bottom: 1px solid #f3f4f6 !important;
-  padding: 4px 8px !important;
+  padding: 10px 12px !important;
   color: #374151;
-  font-size: 12px;
+  font-size: 13px;
+  transition: all 0.2s ease;
 }
 
 .ant-table-tbody>tr:hover>td {
-  background: #f5f5f5 !important;
+  background: #f9fafb !important;
 }
 
 /* Fix for ant-table-measure-row being visible due to global padding override */
@@ -256,30 +262,39 @@ body {
 
 /* Tag Customization */
 .ant-tag {
-  border-radius: 2px;
+  border-radius: 4px;
   font-weight: 500;
   border: none;
-  padding: 1px 6px;
-  font-size: 11px;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 20px;
 }
 
 /* Input Customization */
 .ant-input,
 .ant-input-affix-wrapper {
-  border-radius: 2px;
+  border-radius: 4px;
   border-color: #e5e7eb;
+  transition: all 0.2s ease;
 }
 
 .ant-input:focus,
 .ant-input-affix-wrapper:focus,
 .ant-input-affix-wrapper-focused {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 0 0 3px rgba(78, 83, 88, 0.1);
 }
 
 /* Select Customization */
 .ant-select-selector {
-  border-radius: 2px !important;
+  border-radius: 4px !important;
+  border-color: #e5e7eb !important;
+  transition: all 0.2s ease !important;
+}
+
+.ant-select-focused .ant-select-selector {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px rgba(78, 83, 88, 0.1) !important;
 }
 
 /* Page Headers */
@@ -429,7 +444,7 @@ body {
 .tab-bar-container {
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
-  padding: 2px 12px 0;
+  padding: 4px 12px 0;
   position: sticky;
   top: 40px;
   z-index: 18;
@@ -438,7 +453,7 @@ body {
 .tab-bar-scroll {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -452,16 +467,16 @@ body {
 .tab-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 10px;
-  height: 26px;
+  gap: 8px;
+  padding: 0 12px;
+  height: 32px;
   background: transparent;
   border: none;
   cursor: pointer;
   user-select: none;
   transition: all 0.2s ease;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: #64748b;
   position: relative;
@@ -483,9 +498,9 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 2px;
+  height: 3px;
   background: var(--primary-color);
-  border-radius: 2px 2px 0 0;
+  border-radius: 3px 3px 0 0;
 }
 
 .tab-label {
@@ -523,4 +538,258 @@ body {
 /* User Dropdown Hover Effect */
 .user-dropdown:hover {
   background: #f1f5f9;
+}
+
+/* Query Form Optimization */
+.ant-form-item {
+  margin-bottom: 16px !important;
+}
+
+.ant-form-item-label > label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  height: auto;
+}
+
+/* Button Group Spacing */
+.ant-space-item {
+  display: flex;
+  align-items: center;
+}
+
+/* Card Container Optimization */
+.ant-card {
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Modal Optimization */
+.ant-modal-content {
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.ant-modal-header {
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 16px 24px;
+}
+
+.ant-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.ant-modal-body {
+  padding: 24px;
+}
+
+.ant-modal-footer {
+  border-top: 1px solid #e5e7eb;
+  padding: 12px 24px;
+}
+
+/* Pagination Optimization */
+.ant-pagination {
+  font-size: 13px;
+}
+
+.ant-pagination-item {
+  border-radius: 4px;
+  border-color: #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.ant-pagination-item:hover {
+  border-color: var(--primary-color);
+}
+
+.ant-pagination-item-active {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+}
+
+.ant-pagination-item-active a {
+  color: #fff;
+}
+
+/* Dropdown Menu Optimization */
+.ant-dropdown-menu {
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+}
+
+.ant-dropdown-menu-item {
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.ant-dropdown-menu-item:hover {
+  background: #f3f4f6;
+}
+
+/* Badge Optimization */
+.ant-badge-count {
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  border-radius: 9px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Divider Optimization */
+.ant-divider {
+  margin: 12px 0;
+  border-color: #e5e7eb;
+}
+
+/* Popconfirm Optimization */
+.ant-popover-inner {
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Form Label Alignment */
+.ant-form-vertical .ant-form-item-label {
+  padding-bottom: 4px;
+}
+
+/* Scheme Menu Item Hover */
+.scheme-menu-item {
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  margin: 2px 0;
+}
+
+.scheme-menu-item:hover {
+  background: #f9fafb;
+}
+
+/* Search Form Container */
+.search-form-container {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+}
+
+/* Table Container */
+.table-container {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+}
+
+/* Button Link Style */
+.ant-btn-link {
+  font-size: 13px;
+  padding: 0 4px;
+  height: auto;
+}
+
+.ant-btn-link:hover {
+  background: transparent;
+}
+
+/* Tooltip Optimization */
+.ant-tooltip-inner {
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Input Number Optimization */
+.ant-input-number {
+  border-radius: 4px;
+  border-color: #e5e7eb;
+  width: 100%;
+}
+
+.ant-input-number:focus,
+.ant-input-number-focused {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(78, 83, 88, 0.1);
+}
+
+/* Date Picker Optimization */
+.ant-picker {
+  border-radius: 4px;
+  border-color: #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.ant-picker:hover,
+.ant-picker-focused {
+  border-color: var(--primary-color);
+}
+
+.ant-picker-focused {
+  box-shadow: 0 0 0 3px rgba(78, 83, 88, 0.1);
+}
+
+/* Checkbox Optimization */
+.ant-checkbox-wrapper {
+  font-size: 13px;
+}
+
+.ant-checkbox-checked .ant-checkbox-inner {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+/* Radio Optimization */
+.ant-radio-checked .ant-radio-inner {
+  border-color: var(--primary-color);
+}
+
+.ant-radio-checked .ant-radio-inner::after {
+  background-color: var(--primary-color);
+}
+
+/* Switch Optimization */
+.ant-switch-checked {
+  background-color: var(--primary-color);
+}
+
+/* Loading Spin Optimization */
+.ant-spin-dot-item {
+  background-color: var(--primary-color);
+}
+
+/* Empty State Optimization */
+.ant-empty-description {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Compact Button Group */
+.ant-btn-sm {
+  font-size: 12px;
+  padding: 0 8px;
+  height: 24px;
+  border-radius: 4px;
+}
+
+/* Icon Button Optimization */
+.ant-btn-icon-only {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Form Item No Style */
+.ant-form-item-no-colon .ant-form-item-label > label::after {
+  content: none;
 }

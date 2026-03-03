@@ -39,21 +39,72 @@ export const routeConfig: Record<string, { label: string; closable: boolean }> =
   '/parts': { label: '配件管理', closable: true },
 };
 
+// localStorage 的 key
+const TABS_STORAGE_KEY = 'app_tabs';
+const ACTIVE_KEY_STORAGE_KEY = 'app_active_key';
+
 export const TabsProvider = ({ children }: TabsProviderProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [tabs, setTabs] = useState<TabItem[]>([
-    { key: '/', label: '首页', closable: false }
-  ]);
-  const [activeKey, setActiveKey] = useState<string>('/');
+
+  // 从 localStorage 加载保存的 tabs
+  const getInitialTabs = (): TabItem[] => {
+    try {
+      const savedTabs = localStorage.getItem(TABS_STORAGE_KEY);
+      if (savedTabs) {
+        const parsedTabs = JSON.parse(savedTabs);
+        // 确保至少有首页 tab
+        if (parsedTabs.length > 0) {
+          return parsedTabs;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load tabs from localStorage:', error);
+    }
+    return [{ key: '/', label: '首页', closable: false }];
+  };
+
+  // 从 localStorage 加载保存的 activeKey
+  const getInitialActiveKey = (): string => {
+    try {
+      const savedActiveKey = localStorage.getItem(ACTIVE_KEY_STORAGE_KEY);
+      if (savedActiveKey) {
+        return savedActiveKey;
+      }
+    } catch (error) {
+      console.error('Failed to load activeKey from localStorage:', error);
+    }
+    return '/';
+  };
+
+  const [tabs, setTabs] = useState<TabItem[]>(getInitialTabs);
+  const [activeKey, setActiveKey] = useState<string>(getInitialActiveKey);
+
+  // 保存 tabs 到 localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(TABS_STORAGE_KEY, JSON.stringify(tabs));
+    } catch (error) {
+      console.error('Failed to save tabs to localStorage:', error);
+    }
+  }, [tabs]);
+
+  // 保存 activeKey 到 localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(ACTIVE_KEY_STORAGE_KEY, activeKey);
+    } catch (error) {
+      console.error('Failed to save activeKey to localStorage:', error);
+    }
+  }, [activeKey]);
 
   // 初始化时根据当前路由同步 tab 状态
   useEffect(() => {
     const currentPath = location.pathname;
     const config = routeConfig[currentPath];
 
-    if (config && currentPath !== '/') {
-      // 如果当前路由不是首页，且在配置中存在，则添加对应的 tab
+    if (config) {
+      // 检查当前路由的 tab 是否已存在
       setTabs((prevTabs) => {
         const exists = prevTabs.find((t) => t.key === currentPath);
         if (!exists) {

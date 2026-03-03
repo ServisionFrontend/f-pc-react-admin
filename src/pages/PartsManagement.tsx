@@ -433,7 +433,7 @@ const ExpandableTextArea: React.FC<ExpandableTextAreaProps> = ({
           onChange={(e) => onChange?.(e.target.value)}
           autoComplete="off"
           onFocus={() => setFocused(true)}
-          style={{ opacity: focused ? 0 : 1 }}
+          style={{ opacity: focused ? 0 : 1, height: "32px" }}
         />
       </div>
       {/* 浮动的多行文本框 - 使用 Portal 渲染到 body */}
@@ -448,7 +448,7 @@ const ExpandableTextArea: React.FC<ExpandableTextAreaProps> = ({
               zIndex: 9999,
               background: "#fff",
               boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-              borderRadius: 0,
+              borderRadius: 4,
             }}
           >
             <Input.TextArea
@@ -601,10 +601,10 @@ const EditableCell: React.FC<EditableCellProps> = ({
   let inputNode;
   if (inputType === "number") {
     inputNode = (
-      <InputNumber style={{ width: "100%" }} min={0} autoComplete="off" />
+      <InputNumber style={{ width: "100%", height: "32px" }} min={0} autoComplete="off" />
     );
   } else if (inputType === "select" && options) {
-    inputNode = <Select options={options} style={{ width: "100%" }} />;
+    inputNode = <Select options={options} style={{ width: "100%", height: "32px" }} />;
   } else if (inputType === "textarea") {
     inputNode = <ExpandableTextArea />;
   } else if (dataIndex === "size") {
@@ -612,6 +612,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
     inputNode = (
       <Input
         autoComplete="off"
+        style={{ height: "32px" }}
         suffix={
           <SearchOutlined
             style={{ cursor: "pointer", color: "#1890ff" }}
@@ -621,7 +622,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
       />
     );
   } else {
-    inputNode = <Input autoComplete="off" />;
+    inputNode = <Input autoComplete="off" style={{ height: "32px" }} />;
   }
 
   return (
@@ -1994,7 +1995,7 @@ const PartsManagement: React.FC = () => {
           {/* 字段区域 */}
           <div
             style={{
-              maxHeight: expanded ? "none" : "56px",
+              maxHeight: expanded ? "none" : "70px",
               overflow: "hidden",
               transition: "max-height 0.3s ease",
             }}
@@ -2077,7 +2078,7 @@ const PartsManagement: React.FC = () => {
                     disabled={isEditingFields}
                     style={{ marginRight: 8 }}
                   >
-                    更多筛选
+                    {expanded ? "收起" : "展开"}
                   </Button>
                 </Badge>
               )}

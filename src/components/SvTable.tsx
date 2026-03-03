@@ -8,6 +8,7 @@ import { SvItemProps } from './SvItem';
 // 列宽调整上下文
 interface ResizeContextType {
     startResize: (dataIndex: string, startX: number, startWidth: number) => void;
+    autoFitColumn: (dataIndex: string) => void;
     allColumns: { dataIndex: string; title: string }[];
     hiddenColumns: string[];
     frozenColumns: string[];
@@ -24,6 +25,8 @@ const ResizableTitle = (props: any) => {
     // 从 props 中提取 onClick（antd 排序用），不传给 th，而是仅传给内容区域
     const { onResize, width, dataIndex, onClick: sortOnClick, title, ...restProps } = props;
     const resizeContext = React.useContext(ResizeContext);
+    const lastClickTimeRef = React.useRef<number>(0);
+    const resizeTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
     if (!width || !dataIndex) {
         return <th {...restProps} onClick={sortOnClick} />;
@@ -32,7 +35,33 @@ const ResizableTitle = (props: any) => {
     const handleMouseDown = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        resizeContext?.startResize(dataIndex, e.clientX, width);
+
+        const currentTime = Date.now();
+        const timeSinceLastClick = currentTime - lastClickTimeRef.current;
+
+        // 如果两次点击间隔小于 300ms，认为是双击
+        if (timeSinceLastClick < 300 && timeSinceLastClick > 0) {
+            // 双击：取消之前的单击延迟，执行自动调整
+            if (resizeTimeoutRef.current) {
+                clearTimeout(resizeTimeoutRef.current);
+                resizeTimeoutRef.current = null;
+            }
+            lastClickTimeRef.current = 0; // 重置
+            resizeContext?.autoFitColumn(dataIndex);
+        } else {
+            // 单击：延迟执行拖拽（给双击留出时间）
+            lastClickTimeRef.current = currentTime;
+            const clientX = e.clientX;
+
+            if (resizeTimeoutRef.current) {
+                clearTimeout(resizeTimeoutRef.current);
+            }
+
+            resizeTimeoutRef.current = setTimeout(() => {
+                resizeContext?.startResize(dataIndex, clientX, width);
+                resizeTimeoutRef.current = null;
+            }, 300); // 增加到 300ms 延迟，给双击更多时间
+        }
     };
 
     const showDropdown = dataIndex !== "operation" && dataIndex !== "action";
@@ -412,6 +441,74 @@ const SvTable: React.FC<SvTableProps> = (props) => {
         document.addEventListener("mouseup", handleMouseUp);
     }, [handleMouseMove, handleMouseUp]);
 
+    // 自动调整列宽以适应内容
+    const autoFitColumn = useCallback((dataIndex: string) => {
+        const tableContainer = tableContainerRef.current;
+        if (!tableContainer) {
+            return;
+        }
+
+        // 创建临时测量元素
+        const measureDiv = document.createElement('div');
+        measureDiv.style.cssText = 'position: absolute; visibility: hidden; white-space: nowrap; font-size: 13px; padding: 10px 12px; font-family: Inter, system-ui, -apple-system, sans-serif;';
+        document.body.appendChild(measureDiv);
+
+        let maxWidth = 80; // 最小宽度
+
+        // 测量表头宽度 - 使用多种方式查找
+        let headerCell = tableContainer.querySelector(`th[data-index="${dataIndex}"]`);
+        if (!headerCell) {
+            // 尝试通过 class 或其他方式查找
+            const allHeaders = tableContainer.querySelectorAll('th');
+            allHeaders.forEach((th) => {
+                const thDataIndex = th.getAttribute('data-index');
+                if (thDataIndex === dataIndex) {
+                    headerCell = th;
+                }
+            });
+        }
+
+        if (headerCell) {
+            // 获取表头文本，排除下拉菜单等元素
+            const headerContent = headerCell.querySelector('.column-header-content');
+            const headerText = headerContent ? headerContent.textContent || '' : headerCell.textContent || '';
+            measureDiv.textContent = headerText.trim();
+            const headerWidth = measureDiv.offsetWidth + 60; // 额外空间给下拉菜单和排序图标
+            maxWidth = Math.max(maxWidth, headerWidth);
+        }
+
+        // 测量所有单元格内容宽度
+        let cells = tableContainer.querySelectorAll(`td[data-index="${dataIndex}"]`);
+        if (cells.length === 0) {
+            // 尝试通过属性查找
+            const allCells = tableContainer.querySelectorAll('td');
+            const matchedCells: Element[] = [];
+            allCells.forEach((td) => {
+                const tdDataIndex = td.getAttribute('data-index');
+                if (tdDataIndex === dataIndex) {
+                    matchedCells.push(td);
+                }
+            });
+            cells = matchedCells as any;
+        }
+
+        cells.forEach((cell) => {
+            const text = cell.textContent || '';
+            measureDiv.textContent = text.trim();
+            const cellWidth = measureDiv.offsetWidth + 24; // 额外空间给内边距
+            maxWidth = Math.max(maxWidth, cellWidth);
+        });
+
+        // 清理测量元素
+        document.body.removeChild(measureDiv);
+
+        // 设置最大宽度限制（避免过宽）
+        const finalWidth = Math.min(Math.max(maxWidth, 80), 600);
+
+        // 更新列宽
+        setColumnWidths(prev => ({ ...prev, [dataIndex]: finalWidth }));
+    }, []);
+
     useEffect(() => {
         return () => {
             if (resizeIndicatorRef.current) resizeIndicatorRef.current.remove();
@@ -434,6 +531,7 @@ const SvTable: React.FC<SvTableProps> = (props) => {
 
     const resizeContextValue = useMemo(() => ({
         startResize,
+        autoFitColumn,
         allColumns: allColumnsConfig,
         hiddenColumns,
         frozenColumns,
@@ -442,7 +540,7 @@ const SvTable: React.FC<SvTableProps> = (props) => {
         unfreezeColumn,
         moveColumn,
         tableContainerRef,
-    }), [startResize, allColumnsConfig, hiddenColumns, frozenColumns, toggleColumnVisibility, freezeColumn, unfreezeColumn, moveColumn, tableContainerRef]);
+    }), [startResize, autoFitColumn, allColumnsConfig, hiddenColumns, frozenColumns, toggleColumnVisibility, freezeColumn, unfreezeColumn, moveColumn, tableContainerRef]);
 
     // 动态计算表格高度并设置 CSS 变量
     useEffect(() => {
@@ -485,6 +583,11 @@ const SvTable: React.FC<SvTableProps> = (props) => {
                     ...((col as any).onHeaderCell?.(column) || {}),
                     width: columnWidths[key] || column.width || 120,
                     dataIndex: key,
+                    'data-index': key,
+                }),
+                onCell: (record: any, rowIndex: number) => ({
+                    ...((col as any).onCell?.(record, rowIndex) || {}),
+                    'data-index': key,
                 }),
             };
         });
@@ -545,9 +648,23 @@ const SvTable: React.FC<SvTableProps> = (props) => {
                 .full-height-table th:hover .column-header-dropdown-trigger { opacity: 1; }
                 .column-header-dropdown-trigger.ant-dropdown-open, .ant-dropdown-open .column-header-dropdown-trigger, .column-header-dropdown-wrapper.ant-dropdown-open .column-header-dropdown-trigger { opacity: 1; }
                 .full-height-table th.ant-table-cell { position: relative; overflow: hidden; }
-                .column-resize-handle { position: absolute; right: -5px; top: 0; bottom: 0; width: 10px; cursor: col-resize; z-index: 100; opacity: 0; }
-                .column-resize-handle:hover { opacity: 1; }
-                
+                .column-resize-handle {
+                    position: absolute;
+                    right: -5px;
+                    top: 0;
+                    bottom: 0;
+                    width: 10px;
+                    cursor: col-resize;
+                    z-index: 1000;
+                    background: transparent;
+                }
+                .column-resize-handle:hover {
+                    background: rgba(78, 83, 88, 0.15);
+                }
+                .column-resize-handle:active {
+                    background: rgba(78, 83, 88, 0.3);
+                }
+
                 /* 限制下拉菜单高度并允许滚动 */
                 .sv-table-header-dropdown-menu, .sv-table-column-submenu .ant-dropdown-menu {
                     max-height: calc(var(--sv-table-height, 500px) - 60px) !important;
