@@ -44,6 +44,7 @@ import dayjs from 'dayjs';
 import { SvQueryProps, QueryField, QueryTemplate } from './types';
 import { QueryTemplateService, QueryFieldService } from './service';
 import { SortableField } from './SortableField';
+import { SortableSchemeItem } from './SortableSchemeItem';
 
 const ALL_FIELDS_SCHEME = '全部';
 
@@ -63,6 +64,7 @@ const SvQuery: React.FC<SvQueryProps> = ({
     const { message } = App.useApp();
     const [form] = Form.useForm();
     const searchNameInputRef = useRef<any>(null);
+    const isInitializedRef = useRef(false); // 标记是否已经初始化加载默认模板
 
     const [loading, setLoading] = useState(false);
     const [expanded, setExpanded] = useState(defaultExpanded);
@@ -152,10 +154,85 @@ const SvQuery: React.FC<SvQueryProps> = ({
     };
 
     // 完成编辑字段
-    const handleFinishEditFields = () => {
+    const handleFinishEditFields = async () => {
         setIsEditingFields(false);
         setSelectedFieldNames([]);
-        message.success('字段配置已保存');
+
+        // 获取当前表单的值
+        const formValues = form.getFieldsValue();
+
+        // 保存字段配置和字段值
+        if (currentScheme === ALL_FIELDS_SCHEME) {
+            // 在"全部"模式下，保存字段配置和字段值到 localStorage
+            try {
+                const fieldNames = searchFields.map((f) => f.name);
+                localStorage.setItem(`${storageKey}_allFieldsConfig`, JSON.stringify(fieldNames));
+
+                // 保存字段值
+                localStorage.setItem(`${storageKey}_allFieldsValues`, JSON.stringify(formValues));
+
+                message.success('字段配置已保存');
+            } catch (error) {
+                console.error('Failed to save fields config:', error);
+                message.error('保存字段配置失败');
+            }
+        } else {
+            // 在自定义模板下，更新模板的字段配置和字段值
+            const currentTemplate = savedSearches.find((t) => t.name === currentScheme);
+            if (currentTemplate) {
+                const fieldNames = searchFields.map((f) => f.name);
+
+                // 处理日期字段
+                const processedValues = { ...formValues };
+                Object.keys(processedValues).forEach((key) => {
+                    const value = processedValues[key];
+                    if (value && Array.isArray(value) && value.length === 2) {
+                        if (value[0] && typeof value[0].format === 'function') {
+                            processedValues[key] = value.map((date: any) => date.format('YYYY-MM-DD'));
+                        }
+                    }
+                });
+
+                const updatedTemplate = {
+                    ...currentTemplate,
+                    fields: fieldNames,
+                    conditions: processedValues,
+                };
+
+                if (useApiMode && templateService) {
+                    // API 模式：调用更新接口
+                    try {
+                        setLoading(true);
+                        const res = await templateService.updateTemplate(currentTemplate.id, {
+                            fields: fieldNames,
+                            conditions: processedValues,
+                        });
+                        if (res.code === 200) {
+                            await loadTemplates();
+                            message.success('字段配置已保存');
+                        }
+                    } catch (error) {
+                        console.error('Failed to update template:', error);
+                        message.error('保存字段配置失败');
+                    } finally {
+                        setLoading(false);
+                    }
+                } else {
+                    // 非 API 模式：更新 localStorage
+                    try {
+                        const updatedSearches = savedSearches.map((t) =>
+                            t.id === currentTemplate.id ? updatedTemplate : t
+                        );
+                        setSavedSearches(updatedSearches);
+                        localStorage.setItem(`${storageKey}_savedSearches`, JSON.stringify(updatedSearches));
+                        message.success('字段配置已保存');
+                    } catch (error) {
+                        console.error('Failed to save template:', error);
+                        message.error('保存字段配置失败');
+                    }
+                }
+            }
+        }
     };
 
     const getFilledFieldsCount = useCallback(() => {
@@ -175,14 +252,45 @@ const SvQuery: React.FC<SvQueryProps> = ({
                 const res = await fieldService.getFields('all');
                 if (res.code === 200) {
                     setAllFields(res.data.fields);
-                    setSearchFields(res.data.fields);
+
+                    // 检查 localStorage 中是否有保存的字段配置
+                    try {
+                        const savedConfig = localStorage.getItem(`${storageKey}_allFieldsConfig`);
+                        if (savedConfig) {
+                            const savedFieldNames = JSON.parse(savedConfig);
+                            // 根据保存的字段名称列表，从所有字段中筛选和排序
+                            const orderedFields = savedFieldNames
+                                .map((name: string) => res.data.fields.find((f: QueryField) => f.name === name))
+                                .filter((f: QueryField | undefined) => f !== undefined) as QueryField[];
+                            setSearchFields(orderedFields);
+
+                            // 恢复字段值
+                            const savedValues = localStorage.getItem(`${storageKey}_allFieldsValues`);
+                            if (savedValues) {
+                                const values = JSON.parse(savedValues);
+                                // 处理日期字段
+                                Object.keys(values).forEach((key) => {
+                                    const value = values[key];
+                                    if (Array.isArray(value) && value.length === 2 && typeof value[0] === 'string') {
+                                        values[key] = value.map((dateStr: string) => dayjs(dateStr));
+                                    }
+                                });
+                                form.setFieldsValue(values);
+                            }
+                        } else {
+                            setSearchFields(res.data.fields);
+                        }
+                    } catch (error) {
+                        console.error('Failed to load saved fields config:', error);
+                        setSearchFields(res.data.fields);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to load fields:', error);
                 message.error('加载查询字段失败');
             }
         }
-    }, [useApiMode, fieldService, message]);
+    }, [useApiMode, fieldService, message, storageKey, form]);
 
     const loadTemplates = useCallback(async () => {
         if (useApiMode && templateService) {
@@ -199,13 +307,41 @@ const SvQuery: React.FC<SvQueryProps> = ({
                 console.error('Failed to load templates:', error);
                 message.error('加载查询模板失败');
             }
+        } else {
+            // 非 API 模式，从 localStorage 加载
+            try {
+                const savedTemplates = localStorage.getItem(`${storageKey}_savedSearches`);
+                const savedDefault = localStorage.getItem(`${storageKey}_defaultScheme`);
+
+                if (savedTemplates) {
+                    const templates = JSON.parse(savedTemplates);
+                    setSavedSearches(templates);
+                }
+
+                if (savedDefault) {
+                    setDefaultScheme(savedDefault);
+                }
+            } catch (error) {
+                console.error('Failed to load templates from localStorage:', error);
+            }
         }
-    }, [useApiMode, templateService, message]);
+    }, [useApiMode, templateService, message, storageKey]);
 
     useEffect(() => {
         loadAllFields();
         loadTemplates();
     }, [loadAllFields, loadTemplates]);
+
+    // 初始化时自动加载默认模板
+    useEffect(() => {
+        if (!isInitializedRef.current && defaultScheme && savedSearches.length > 0) {
+            const defaultTemplate = savedSearches.find((t) => t.name === defaultScheme);
+            if (defaultTemplate) {
+                handleLoadSearch(defaultTemplate);
+                isInitializedRef.current = true;
+            }
+        }
+    }, [defaultScheme, savedSearches]);
 
     const handleSearch = () => {
         const values = form.getFieldsValue();
@@ -272,11 +408,42 @@ const SvQuery: React.FC<SvQueryProps> = ({
                     message.success('查询条件已保存');
                     await loadTemplates();
                     setSaveModalVisible(false);
+                    // 清空输入框
+                    if (searchNameInputRef.current?.input) {
+                        searchNameInputRef.current.input.value = '';
+                    }
+                    // 自动切换到新创建的模板
+                    if (res.data) {
+                        handleLoadSearch(res.data);
+                    }
                 }
             } catch (error) {
                 message.error('保存查询条件失败');
             } finally {
                 setLoading(false);
+            }
+        } else {
+            // 非 API 模式，保存到 localStorage
+            try {
+                const newTemplateWithId = {
+                    ...newTemplate,
+                    id: `local_${Date.now()}`,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                };
+                const updatedSearches = [...savedSearches, newTemplateWithId];
+                setSavedSearches(updatedSearches);
+                localStorage.setItem(`${storageKey}_savedSearches`, JSON.stringify(updatedSearches));
+                message.success('查询条件已保存');
+                setSaveModalVisible(false);
+                // 清空输入框
+                if (searchNameInputRef.current?.input) {
+                    searchNameInputRef.current.input.value = '';
+                }
+                // 自动切换到新创建的模板
+                handleLoadSearch(newTemplateWithId);
+            } catch (error) {
+                message.error('保存查询条件失败');
             }
         }
     };
@@ -316,7 +483,25 @@ const SvQuery: React.FC<SvQueryProps> = ({
 
     const handleLoadAllFields = () => {
         setCurrentScheme(ALL_FIELDS_SCHEME);
-        setSearchFields(allFields);
+
+        // 检查 localStorage 中是否有保存的字段配置
+        try {
+            const savedConfig = localStorage.getItem(`${storageKey}_allFieldsConfig`);
+            if (savedConfig) {
+                const savedFieldNames = JSON.parse(savedConfig);
+                // 根据保存的字段名称列表，从所有字段中筛选和排序
+                const orderedFields = savedFieldNames
+                    .map((name: string) => allFields.find((f) => f.name === name))
+                    .filter((f: QueryField | undefined) => f !== undefined) as QueryField[];
+                setSearchFields(orderedFields);
+            } else {
+                setSearchFields(allFields);
+            }
+        } catch (error) {
+            console.error('Failed to load saved fields config:', error);
+            setSearchFields(allFields);
+        }
+
         form.resetFields();
         setFilledCount(0);
     };
@@ -335,13 +520,194 @@ const SvQuery: React.FC<SvQueryProps> = ({
                     if (deletedSearch.name === currentScheme) {
                         handleLoadAllFields();
                     }
+
+                    // 如果删除的是默认方案，清除默认方案设置
+                    if (deletedSearch.name === defaultScheme) {
+                        setDefaultScheme(null);
+                    }
                 }
             } catch (error) {
                 message.error('删除失败');
             } finally {
                 setLoading(false);
             }
+        } else {
+            // 非 API 模式，从 localStorage 删除
+            const updatedSearches = savedSearches.filter((_, i) => i !== index);
+            setSavedSearches(updatedSearches);
+            localStorage.setItem(`${storageKey}_savedSearches`, JSON.stringify(updatedSearches));
+
+            // 如果删除的是当前方案，切换到"全部查询条件"
+            if (deletedSearch.name === currentScheme) {
+                handleLoadAllFields();
+            }
+
+            // 如果删除的是默认方案，清除默认方案设置
+            if (deletedSearch.name === defaultScheme) {
+                setDefaultScheme(null);
+                localStorage.removeItem(`${storageKey}_defaultScheme`);
+            }
+
+            message.success('已删除');
         }
+    };
+
+    // 重命名查询方案
+    const handleRenameScheme = async (index: number, newName: string) => {
+        const oldSearch = savedSearches[index];
+        const oldName = oldSearch.name;
+
+        // 检查新名称是否与其他方案重复
+        const isDuplicate = savedSearches.some((s, i) => i !== index && s.name === newName);
+        if (isDuplicate) {
+            message.warning('方案名称已存在');
+            return;
+        }
+
+        if (useApiMode && templateService && oldSearch.id) {
+            try {
+                setLoading(true);
+                const res = await templateService.updateTemplate(oldSearch.id, { name: newName });
+                if (res.code === 200) {
+                    message.success('重命名成功');
+                    await loadTemplates();
+
+                    // 如果重命名的是当前方案，更新当前方案名称
+                    if (oldName === currentScheme) {
+                        setCurrentScheme(newName);
+                    }
+
+                    // 如果重命名的是默认方案，更新默认方案名称
+                    if (oldName === defaultScheme) {
+                        setDefaultScheme(newName);
+                    }
+                }
+            } catch (error) {
+                message.error('重命名失败');
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // 非 API 模式，更新 localStorage
+            const updatedSearches = [...savedSearches];
+            updatedSearches[index] = { ...updatedSearches[index], name: newName };
+            setSavedSearches(updatedSearches);
+            localStorage.setItem(`${storageKey}_savedSearches`, JSON.stringify(updatedSearches));
+
+            // 如果重命名的是当前方案，更新当前方案名称
+            if (oldName === currentScheme) {
+                setCurrentScheme(newName);
+            }
+
+            // 如果重命名的是默认方案，更新默认方案名称
+            if (oldName === defaultScheme) {
+                setDefaultScheme(newName);
+                localStorage.setItem(`${storageKey}_defaultScheme`, newName);
+            }
+
+            message.success('重命名成功');
+        }
+    };
+
+    // 设置默认查询方案
+    const handleSetDefaultScheme = async (schemeName: string) => {
+        const scheme = savedSearches.find(s => s.name === schemeName);
+        if (useApiMode && templateService && scheme?.id) {
+            try {
+                setLoading(true);
+                // 先取消所有默认
+                for (const s of savedSearches) {
+                    if (s.isDefault && s.id) {
+                        await templateService.updateTemplate(s.id, { isDefault: false });
+                    }
+                }
+                // 设置新的默认
+                const res = await templateService.updateTemplate(scheme.id, { isDefault: true });
+                if (res.code === 200) {
+                    message.success(`已设置"${schemeName}"为默认方案`);
+                    await loadTemplates();
+                    setDefaultScheme(schemeName);
+                }
+            } catch (error) {
+                message.error('设置默认失败');
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // 非 API 模式，保存到 localStorage
+            setDefaultScheme(schemeName);
+            localStorage.setItem(`${storageKey}_defaultScheme`, schemeName);
+            message.success(`已设置"${schemeName}"为默认方案`);
+        }
+    };
+
+    // 取消默认查询方案
+    const handleCancelDefaultScheme = async () => {
+        const scheme = savedSearches.find(s => s.name === defaultScheme);
+        if (useApiMode && templateService && scheme?.id) {
+            try {
+                setLoading(true);
+                const res = await templateService.updateTemplate(scheme.id, { isDefault: false });
+                if (res.code === 200) {
+                    message.success('已取消默认方案');
+                    await loadTemplates();
+                    setDefaultScheme(null);
+                }
+            } catch (error) {
+                message.error('取消默认失败');
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // 非 API 模式，从 localStorage 删除
+            setDefaultScheme(null);
+            localStorage.removeItem(`${storageKey}_defaultScheme`);
+            message.success('已取消默认方案');
+        }
+    };
+
+    // 处理查询方案拖拽排序
+    const handleSchemeReorder = async (oldIndex: number, newIndex: number) => {
+        const newSearches = arrayMove(savedSearches, oldIndex, newIndex);
+        setSavedSearches(newSearches);
+
+        if (useApiMode && templateService) {
+            try {
+                // 更新所有方案的顺序
+                const orders = newSearches.map((s, index) => ({
+                    id: s.id!,
+                    order: index,
+                }));
+                await templateService.reorderTemplates(orders);
+            } catch (error) {
+                message.error('调整顺序失败');
+                // 失败时恢复原顺序
+                await loadTemplates();
+            }
+        } else {
+            // 非 API 模式，保存到 localStorage
+            localStorage.setItem(`${storageKey}_savedSearches`, JSON.stringify(newSearches));
+        }
+    };
+
+    // 处理查询方案拖拽开始
+    const handleSchemeDragStart = () => {
+        // 拖拽开始逻辑
+    };
+
+    // 处理查询方案拖拽结束
+    const handleSchemeDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            const oldIndex = parseInt((active.id as string).replace('scheme-', ''));
+            const newIndex = parseInt((over.id as string).replace('scheme-', ''));
+            handleSchemeReorder(oldIndex, newIndex);
+        }
+    };
+
+    // 处理查询方案拖拽取消
+    const handleSchemeDragCancel = () => {
+        // 拖拽取消逻辑
     };
 
     const hasMoreFields = searchFields.length > 6;
@@ -382,38 +748,90 @@ const SvQuery: React.FC<SvQueryProps> = ({
                         <Dropdown
                             open={dropdownOpen}
                             onOpenChange={setDropdownOpen}
-                            menu={{
-                                items: [
-                                    {
-                                        key: 'all',
-                                        label: (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                {currentScheme === ALL_FIELDS_SCHEME && (
-                                                    <CheckOutlined style={{ color: '#1890ff', fontSize: 14 }} />
-                                                )}
-                                                <span>{ALL_FIELDS_SCHEME}</span>
-                                            </div>
-                                        ),
-                                        onClick: handleLoadAllFields,
-                                    },
-                                    savedSearches.length > 0 && { type: 'divider' },
-                                    ...savedSearches.map((search, index) => ({
-                                        key: search.id || index,
-                                        label: (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                {currentScheme === search.name && (
-                                                    <CheckOutlined style={{ color: '#1890ff', fontSize: 14 }} />
-                                                )}
-                                                {search.isDefault && (
-                                                    <PushpinFilled style={{ color: '#1890ff', fontSize: 12 }} />
-                                                )}
-                                                <span>{search.name}</span>
-                                            </div>
-                                        ),
-                                        onClick: () => handleLoadSearch(search),
-                                    })),
-                                ].filter(Boolean),
-                            }}
+                            dropdownRender={() => (
+                                <div
+                                    style={{
+                                        backgroundColor: '#fff',
+                                        borderRadius: 6,
+                                        boxShadow: '0 3px 6px -4px rgba(0,0,0,.12), 0 6px 16px 0 rgba(0,0,0,.08), 0 9px 28px 8px rgba(0,0,0,.05)',
+                                        minWidth: 240,
+                                    }}
+                                >
+                                    {/* 全部查询条件 - 固定不可拖拽 */}
+                                    <div
+                                        onClick={() => {
+                                            handleLoadAllFields();
+                                            setDropdownOpen(false);
+                                        }}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 8,
+                                            padding: '5px 12px',
+                                            cursor: 'pointer',
+                                            backgroundColor: 'transparent',
+                                            transition: 'background-color 0.2s',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.backgroundColor = '#f5f5f5';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.backgroundColor = 'transparent';
+                                        }}
+                                    >
+                                        {currentScheme === ALL_FIELDS_SCHEME ? (
+                                            <CheckOutlined style={{ color: '#1890ff', fontSize: 14 }} />
+                                        ) : (
+                                            <div style={{ width: 14 }}></div>
+                                        )}
+                                        <span
+                                            style={{
+                                                fontWeight: currentScheme === ALL_FIELDS_SCHEME ? 600 : 400,
+                                            }}
+                                        >
+                                            {ALL_FIELDS_SCHEME}
+                                        </span>
+                                    </div>
+
+                                    {/* 分隔线 */}
+                                    {savedSearches.length > 0 && <Divider style={{ margin: '4px 0' }} />}
+
+                                    {/* 可拖拽的查询方案列表 */}
+                                    {savedSearches.length > 0 && (
+                                        <DndContext
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            onDragStart={handleSchemeDragStart}
+                                            onDragEnd={handleSchemeDragEnd}
+                                            onDragCancel={handleSchemeDragCancel}
+                                        >
+                                            <SortableContext
+                                                items={savedSearches.map((_, index) => `scheme-${index}`)}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                                {savedSearches.map((search, index) => (
+                                                    <SortableSchemeItem
+                                                        key={`scheme-${index}`}
+                                                        search={search}
+                                                        index={index}
+                                                        currentScheme={currentScheme}
+                                                        defaultScheme={defaultScheme}
+                                                        onLoad={() => {
+                                                            handleLoadSearch(search);
+                                                            setDropdownOpen(false);
+                                                        }}
+                                                        onSetDefault={() => handleSetDefaultScheme(search.name)}
+                                                        onCancelDefault={handleCancelDefaultScheme}
+                                                        onDelete={() => handleDeleteSearch(index)}
+                                                        onRename={(newName) => handleRenameScheme(index, newName)}
+                                                    />
+                                                ))}
+                                            </SortableContext>
+                                        </DndContext>
+                                    )}
+                                </div>
+                            )}
+                            placement="bottomLeft"
                             trigger={['click']}
                         >
                             <div
@@ -425,8 +843,14 @@ const SvQuery: React.FC<SvQueryProps> = ({
                                     padding: '2px 8px',
                                     borderRadius: 4,
                                     backgroundColor: '#f5f5f5',
+                                    transition: 'all 0.3s',
                                 }}
+                                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#e6f7ff'}
+                                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#f5f5f5'}
                             >
+                                {currentScheme === defaultScheme && currentScheme !== ALL_FIELDS_SCHEME ? (
+                                    <PushpinFilled style={{ color: '#1890ff', fontSize: 12 }} />
+                                ) : null}
                                 <span style={{ fontWeight: 600, color: '#1890ff', fontSize: 13 }}>
                                     {currentScheme}
                                 </span>
@@ -480,7 +904,7 @@ const SvQuery: React.FC<SvQueryProps> = ({
                                                 setSelectedFieldNames(selectedFieldNames.filter((name) => name !== field.name));
                                             }
                                         }}
-                                        disableInput={isEditingFields}
+                                        disableInput={false}
                                     />
                                 ))}
                             </Row>

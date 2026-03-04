@@ -69,8 +69,37 @@ const partsQueryFields: QueryField[] = [
     { name: 'compatibility', label: '适用车型', type: 'input' },
 ];
 
-// Mock 查询模板数据
-let mockTemplates: QueryTemplate[] = [];
+// localStorage 存储键
+const STORAGE_KEY = 'partsManagement_mockTemplates';
+
+/**
+ * 从 localStorage 加载模板数据
+ */
+function loadFromLocalStorage(): QueryTemplate[] {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            return JSON.parse(saved);
+        }
+    } catch (error) {
+        console.error('Failed to load templates from localStorage:', error);
+    }
+    return [];
+}
+
+/**
+ * 保存模板数据到 localStorage
+ */
+function saveToLocalStorage(templates: QueryTemplate[]): void {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+    } catch (error) {
+        console.error('Failed to save templates to localStorage:', error);
+    }
+}
+
+// Mock 查询模板数据（从 localStorage 初始化）
+let mockTemplates: QueryTemplate[] = loadFromLocalStorage();
 
 /**
  * 配件管理查询模板 Mock Service
@@ -104,6 +133,7 @@ export const partsQueryTemplateService = {
                     updatedAt: new Date().toISOString(),
                 };
                 mockTemplates.push(newTemplate);
+                saveToLocalStorage(mockTemplates);
                 resolve({
                     code: 200,
                     message: 'success',
@@ -138,6 +168,8 @@ export const partsQueryTemplateService = {
                     updatedAt: new Date().toISOString(),
                 };
 
+                saveToLocalStorage(mockTemplates);
+
                 resolve({
                     code: 200,
                     message: 'success',
@@ -160,6 +192,7 @@ export const partsQueryTemplateService = {
                     }
                 });
                 mockTemplates.sort((a, b) => a.order - b.order);
+                saveToLocalStorage(mockTemplates);
                 resolve({
                     code: 200,
                     message: 'success',
@@ -182,6 +215,7 @@ export const partsQueryTemplateService = {
                 }
 
                 mockTemplates.splice(index, 1);
+                saveToLocalStorage(mockTemplates);
                 resolve({
                     code: 200,
                     message: 'success',

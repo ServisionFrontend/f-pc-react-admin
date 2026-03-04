@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Form, Col, Select, InputNumber, DatePicker, Input } from "antd";
 import { HolderOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useSortable } from "@dnd-kit/sortable";
@@ -41,6 +41,30 @@ export const SortableField: React.FC<SortableFieldProps> = ({
         // 禁用动画过渡，防止其他字段自动移动
         animateLayoutChanges: () => false,
     });
+
+    // 监听字段值的变化
+    const fieldValue = Form.useWatch(field.name);
+
+    // 当字段值变化时，自动更新 checkbox 状态
+    useEffect(() => {
+        if (showCheckbox && onCheckChange) {
+            // 判断值是否为空
+            const isEmpty =
+                fieldValue === undefined ||
+                fieldValue === null ||
+                fieldValue === '' ||
+                (Array.isArray(fieldValue) && fieldValue.length === 0);
+
+            // 如果值不为空且未选中，自动选中
+            if (!isEmpty && !isChecked) {
+                onCheckChange(true);
+            }
+            // 如果值为空且已选中，自动取消选中
+            else if (isEmpty && isChecked) {
+                onCheckChange(false);
+            }
+        }
+    }, [fieldValue, showCheckbox, isChecked, onCheckChange]);
 
     const style = {
         // 只对正在拖动的字段应用 transform，其他字段保持原位
