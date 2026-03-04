@@ -1,5 +1,5 @@
-import { Result } from '../utils/http';
-import { PageResult } from '../hooks/useCrud';
+import { Result } from '../../utils/http';
+import { PageResult } from '../../hooks/useCrud';
 
 export interface Part {
     key: string;

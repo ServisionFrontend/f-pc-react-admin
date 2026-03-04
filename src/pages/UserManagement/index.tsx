@@ -1,5 +1,5 @@
-import { SvCrud, SvQuery, SvTable, SvEdit, SvItem } from '../components';
-import userService from '../services/userService';
+import { SvCrud, SvQuery, SvTable, SvEdit, SvItem } from '../../components';
+import userService from './service';
 import { Tag, Space } from 'antd';
 
 const UserManagement = () => {

@@ -1,5 +1,5 @@
-import { SvCrud, SvQuery, SvTable, SvEdit, SvItem } from '../components';
-import roleService from '../services/roleService';
+import { SvCrud, SvQuery, SvTable, SvEdit, SvItem } from '../../components';
+import roleService from './service';
 import { Tag } from 'antd';
 
 const RoleManagement = () => {
