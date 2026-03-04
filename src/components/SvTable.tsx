@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, ReactNode, useMemo, Children } from 'react';
 import { Table, Dropdown, Checkbox, Space, Popconfirm, Button } from 'antd';
-import type { TableProps } from 'antd/es/table';
+import type { TableProps, TablePaginationConfig } from 'antd/es/table';
 import { AppstoreOutlined, LockOutlined, UnlockOutlined, CaretDownOutlined, ArrowUpOutlined, ArrowDownOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useSvCrudContext } from './context';
 import { SvItemProps } from './SvItem';
@@ -257,16 +257,117 @@ const ResizableTitle = (props: any) => {
     );
 };
 
-export interface SvTableProps extends TableProps<any> {
+export interface SvTableProps extends Omit<TableProps<any>, 'pagination' | 'onChange'> {
+    // 是否显示分页（默认 true）
+    showPagination?: boolean;
+
+    // 受控模式：外部传入分页配置
+    pagination?: TablePaginationConfig | false;
+
+    // 非受控模式：默认分页配置
+    defaultPagination?: {
+        current?: number;
+        pageSize?: number;
+        total?: number;
+        showSizeChanger?: boolean;
+        showQuickJumper?: boolean;
+        pageSizeOptions?: string[];
+    };
+
+    // 简化的分页变化回调
+    onPaginationChange?: (page: number, pageSize: number) => void;
+
+    // 完整的 Table onChange（保持兼容）
+    onChange?: TableProps<any>['onChange'];
 }
 
 const SvTable: React.FC<SvTableProps> = (props) => {
     const svContext = useSvCrudContext();
 
+    // 解构新增的 props
+    const {
+        showPagination = true,
+        defaultPagination,
+        onPaginationChange,
+        pagination: _pagination,
+        onChange: _onChange,
+        ...restProps
+    } = props;
+
     const dataSource = props.dataSource !== undefined ? props.dataSource : svContext?.data;
     const loading = props.loading !== undefined ? props.loading : svContext?.loading;
-    const pagination = props.pagination !== undefined ? props.pagination : svContext?.pagination;
-    const onChange = props.onChange || svContext?.handleTableChange;
+
+    // 内部分页状态（非受控模式）
+    const [internalPagination, setInternalPagination] = useState({
+        current: defaultPagination?.current || 1,
+        pageSize: defaultPagination?.pageSize || 10,
+        total: defaultPagination?.total || 0,
+    });
+
+    // 分页模式判断
+    const paginationMode = useMemo(() => {
+        if (svContext?.pagination) return 'context';
+        if (props.pagination !== undefined) return 'controlled';
+        return 'uncontrolled';
+    }, [svContext, props.pagination]);
+
+    // 最终分页配置计算
+    const finalPagination = useMemo(() => {
+        // 不显示分页
+        if (showPagination === false) return false;
+
+        // 上下文模式
+        if (paginationMode === 'context') return svContext?.pagination;
+
+        // 受控模式
+        if (paginationMode === 'controlled') return props.pagination;
+
+        // 非受控模式
+        return {
+            current: internalPagination.current,
+            pageSize: internalPagination.pageSize,
+            total: internalPagination.total,
+            showSizeChanger: defaultPagination?.showSizeChanger ?? true,
+            showQuickJumper: defaultPagination?.showQuickJumper ?? true,
+            pageSizeOptions: defaultPagination?.pageSizeOptions || ['10', '20', '50', '100'],
+            showTotal: (total: number) => `共 ${total} 条`,
+        };
+    }, [showPagination, paginationMode, svContext?.pagination, props.pagination, internalPagination, defaultPagination]);
+
+    // 事件处理
+    const handleTableChange: TableProps<any>['onChange'] = useCallback(
+        (pagination, filters, sorter, extra) => {
+            // 调用外部 onChange
+            props.onChange?.(pagination, filters, sorter, extra);
+
+            if (pagination && typeof pagination === 'object') {
+                const { current = 1, pageSize = 10 } = pagination;
+
+                // 上下文模式
+                if (paginationMode === 'context') {
+                    svContext?.handleTableChange?.(pagination, filters, sorter, extra);
+                    return;
+                }
+
+                // 受控模式
+                if (paginationMode === 'controlled') {
+                    onPaginationChange?.(current, pageSize);
+                    return;
+                }
+
+                // 非受控模式
+                if (paginationMode === 'uncontrolled') {
+                    setInternalPagination(prev => ({
+                        ...prev,
+                        current,
+                        pageSize,
+                    }));
+                    onPaginationChange?.(current, pageSize);
+                }
+            }
+        },
+        [paginationMode, props.onChange, onPaginationChange, svContext]
+    );
 
     let baseColumns = props.columns || [];
 
@@ -676,11 +777,11 @@ const SvTable: React.FC<SvTableProps> = (props) => {
                 <Table
                     className={`full-height-table ${props.className || ''}`}
                     showSorterTooltip={false}
-                    {...props}
+                    {...restProps}
                     dataSource={dataSource}
                     loading={loading}
-                    pagination={pagination}
-                    onChange={onChange}
+                    pagination={finalPagination}
+                    onChange={handleTableChange}
                     columns={processedColumns}
                     components={components}
                 />
