@@ -2,60 +2,29 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Button,
   Space,
-  Input,
   Form,
   App,
-  Modal,
-  Dropdown,
-  Divider,
-  Row,
-  Badge,
   Tooltip,
   Tag,
-  Popconfirm
+  Popconfirm,
+  Modal
 } from "antd";
-import dayjs from 'dayjs';
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   SaveOutlined,
   CloseOutlined,
-  SearchOutlined,
-  ReloadOutlined,
-  DownOutlined,
-  UpOutlined,
-  HolderOutlined,
-  CheckOutlined,
-  PushpinFilled,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import partsService, { Part } from "./service";
-import { SvTable } from "../../components";
+import { SvTable, SvQuery } from "../../components";
+import { partsQueryTemplateService, partsQueryFieldService } from "./queryService";
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  DragOverEvent,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import {
-  SortableSchemeItem,
-  SortableField,
   SizeSelectModal,
   EditableCell
 } from "./components";
+
 const statusOptions = [
   { label: "启用", value: "active" },
   { label: "停用", value: "inactive" },
@@ -80,16 +49,10 @@ const fragileOptions = [
   { label: "否(N)", value: "N" },
 ];
 
-// 全部查询条件常量
-const ALL_FIELDS_SCHEME = "全部";
-
 const PartsManagement: React.FC = () => {
   const { message } = App.useApp();
   const [form] = Form.useForm();
-  const [searchForm] = Form.useForm();
   const [data, setData] = useState<Part[]>([]);
-  const searchNameInputRef = useRef<any>(null);
-  const hasLoadedDefaultScheme = useRef(false); // 标记是否已加载默认方案
   const [loading, setLoading] = useState(false);
   const [editingKey, setEditingKey] = useState("");
   const [pagination, setPagination] = useState({
@@ -98,7 +61,6 @@ const PartsManagement: React.FC = () => {
     total: 0,
   });
   const [isAdding, setIsAdding] = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const [sortParams, setSortParams] = useState<{
     field?: string;
     order?: string;
@@ -107,380 +69,10 @@ const PartsManagement: React.FC = () => {
   // 多选功能
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
-  // 处理选择变化
-  const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-  };
-
-  // 批量删除
-  const handleBatchDelete = async () => {
-    if (selectedRowKeys.length === 0) {
-      message.warning("请先选择要删除的数据");
-      return;
-    }
-
-    Modal.confirm({
-      title: "确认删除",
-      content: `确定要删除选中的 ${selectedRowKeys.length} 条数据吗？`,
-      okText: "确定",
-      cancelText: "取消",
-      okType: "danger",
-      onOk: async () => {
-        setLoading(true);
-        try {
-          // 这里应该调用批量删除接口，暂时用循环删除模拟
-          for (const key of selectedRowKeys) {
-            await partsService.delete(key as string);
-          }
-          message.success("批量删除成功");
-          setSelectedRowKeys([]);
-          fetchData();
-        } catch (error) {
-          message.error("批量删除失败");
-        } finally {
-          setLoading(false);
-        }
-      },
-    });
-  };
-
-  // 行选择配置
-  const rowSelection = {
-    selectedRowKeys,
-    onChange: onSelectChange,
-    // 编辑状态下禁用选择
-    getCheckboxProps: () => ({
-      disabled: editingKey !== "",
-    }),
-  };
-
-  // 计算已填写的查询条件数量
-  const getFilledFieldsCount = () => {
-    const values = searchForm.getFieldsValue();
-    return Object.values(values).filter(
-      (value) => value !== undefined && value !== null && value !== ""
-    ).length;
-  };
-
-  const [filledCount, setFilledCount] = useState(0);
-
-  // 监听表单变化更新计数
-  useEffect(() => {
-    const updateCount = () => {
-      setFilledCount(getFilledFieldsCount());
-    };
-    updateCount();
-  }, [searchForm]);
-
-  // 保存的查询条件
-  const [savedSearches, setSavedSearches] = useState<
-    Array<{ name: string; conditions: any; fields?: string[]; isDefault?: boolean }>
-  >([]);
-  const [saveModalVisible, setSaveModalVisible] = useState(false);
-  const [currentScheme, setCurrentScheme] = useState<string>(ALL_FIELDS_SCHEME); // 当前选中的查询方案名称，默认为"全部查询条件"
-  const [defaultScheme, setDefaultScheme] = useState<string | null>(null); // 默认查询方案名称
-
-  // 从 localStorage 加载保存的查询条件
-  useEffect(() => {
-    const saved = localStorage.getItem("partsManagement_savedSearches");
-    if (saved) {
-      try {
-        setSavedSearches(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to load saved searches:", e);
-      }
-    }
-
-    // 加载默认方案
-    const defaultSchemeName = localStorage.getItem("partsManagement_defaultScheme");
-    if (defaultSchemeName) {
-      setDefaultScheme(defaultSchemeName);
-    }
-  }, []);
-
-  // 保存查询条件
-  const handleSaveSearch = () => {
-    const searchName = searchNameInputRef.current?.input?.value?.trim() || "";
-
-    if (!searchName) {
-      message.warning("请输入查询条件名称");
-      return;
-    }
-
-    // 如果当前是"全部查询条件"且在编辑模式，检查是否有选中字段
-    if (currentScheme === ALL_FIELDS_SCHEME && isEditingFields) {
-      if (selectedFieldNames.length === 0) {
-        message.warning("请至少选择一个字段");
-        return;
-      }
-    }
-
-    const conditions = searchForm.getFieldsValue();
-
-    // 处理日期范围，转换为字符串以便保存到localStorage
-    const processedConditions = { ...conditions };
-    if (processedConditions.productionDate && Array.isArray(processedConditions.productionDate)) {
-      processedConditions.productionDate = processedConditions.productionDate.map((date: any) => {
-        if (date && typeof date.format === 'function') {
-          return date.format('YYYY-MM-DD');
-        }
-        return date;
-      });
-    }
-
-    // 确定要保存的字段列表和条件
-    let fieldsToSave: string[];
-    let conditionsToSave: any;
-
-    if (currentScheme === ALL_FIELDS_SCHEME && isEditingFields && selectedFieldNames.length > 0) {
-      // 如果在"全部查询条件"且编辑模式下，使用选中的字段
-      fieldsToSave = selectedFieldNames;
-      // 只保存选中字段的条件值
-      conditionsToSave = {};
-      selectedFieldNames.forEach((fieldName) => {
-        if (processedConditions[fieldName] !== undefined) {
-          conditionsToSave[fieldName] = processedConditions[fieldName];
-        }
-      });
-    } else {
-      // 否则保存当前使用的字段列表
-      const usedFields = Object.keys(conditions).filter(
-        (key) => conditions[key] !== undefined && conditions[key] !== null && conditions[key] !== ""
-      );
-      // 如果没有填写查询条件，则保存所有当前显示的字段
-      fieldsToSave = usedFields.length > 0 ? usedFields : searchFields.map((f) => f.name);
-      conditionsToSave = processedConditions;
-    }
-
-    const newSearch = {
-      name: searchName,
-      conditions: conditionsToSave,
-      fields: fieldsToSave // 保存字段列表
-    };
-    const updated = [...savedSearches, newSearch];
-    setSavedSearches(updated);
-    localStorage.setItem("partsManagement_savedSearches", JSON.stringify(updated));
-    message.success("查询条件已保存");
-    setSaveModalVisible(false);
-
-    // 清空选中的字段
-    setSelectedFieldNames([]);
-
-    // 自动切换到新保存的查询方案
-    setTimeout(() => {
-      handleLoadSearch(newSearch);
-    }, 100);
-  };
-
-  // 加载已保存的查询条件
-  const handleLoadSearch = (search: { name: string; conditions: any; fields?: string[] }) => {
-    const { name, conditions, fields } = search;
-
-    // 如果正在编辑字段，自动关闭编辑状态
-    if (isEditingFields) {
-      setIsEditingFields(false);
-      setSelectedFieldNames([]);
-    }
-
-    // 设置当前查询方案
-    setCurrentScheme(name);
-
-    // 清空选中的字段
-    setSelectedFieldNames([]);
-
-    // 如果方案中保存了字段列表，按照保存的顺序显示这些字段
-    if (fields && fields.length > 0) {
-      // 按照保存的字段顺序重新构建字段数组
-      const schemeFields = fields
-        .map((fieldName) => defaultSearchFields.find((f) => f.name === fieldName))
-        .filter((f) => f !== undefined) as typeof defaultSearchFields;
-      setSearchFields(schemeFields);
-    } else {
-      // 兼容旧版本：获取查询方案中包含的字段名称
-      const conditionFields = Object.keys(conditions).filter(
-        (key) => conditions[key] !== undefined && conditions[key] !== null && conditions[key] !== ""
-      );
-
-      // 检查这些字段是否在当前的 searchFields 中
-      const currentFieldNames = searchFields.map((f) => f.name);
-      const missingFields = conditionFields.filter(
-        (fieldName) => !currentFieldNames.includes(fieldName)
-      );
-
-      // 如果有缺失的字段，需要恢复
-      if (missingFields.length > 0) {
-        const missingFieldObjects = defaultSearchFields.filter((f) =>
-          missingFields.includes(f.name)
-        );
-
-        // 将缺失的字段添加回来
-        const restoredFields = [...searchFields, ...missingFieldObjects];
-        setSearchFields(restoredFields);
-
-        message.info(
-          `已自动恢复 ${missingFieldObjects.map((f) => f.label).join("、")} 字段`
-        );
-      }
-    }
-
-    // 处理日期范围字段，将字符串转换为dayjs对象
-    const processedConditions = { ...conditions };
-    if (processedConditions.productionDate && Array.isArray(processedConditions.productionDate)) {
-      processedConditions.productionDate = processedConditions.productionDate.map((dateStr: any) => {
-        if (typeof dateStr === 'string') {
-          return dayjs(dateStr);
-        }
-        return dateStr;
-      });
-    }
-
-    // 填充查询条件
-    searchForm.setFieldsValue(processedConditions);
-
-    // 使用 setTimeout 确保表单值更新后再计算
-    setTimeout(() => {
-      setFilledCount(getFilledFieldsCount());
-    }, 0);
-
-    // 自动展开以显示所有字段
-    setExpanded(true);
-
-    // 自动执行查询
-    setPagination((prev) => ({ ...prev, current: 1 }));
-    fetchData({ ...conditions, page: 1 });
-  };
-
-  // 切换到全部查询条件
-  const handleLoadAllFields = () => {
-    // 如果正在编辑字段，自动关闭编辑状态
-    if (isEditingFields) {
-      setIsEditingFields(false);
-    }
-
-    setCurrentScheme(ALL_FIELDS_SCHEME);
-    setSearchFields(defaultSearchFields);
-    // 清除localStorage中的字段配置，确保"全部查询条件"始终显示所有字段
-    localStorage.removeItem("partsManagement_searchFields");
-    searchForm.resetFields();
-    setFilledCount(0);
-    setSelectedFieldNames([]); // 清空选中的字段
-  };
-
-  // 处理查询方案拖拽排序
-  const handleSchemeReorder = (oldIndex: number, newIndex: number) => {
-    const newSearches = arrayMove(savedSearches, oldIndex, newIndex);
-    setSavedSearches(newSearches);
-    localStorage.setItem("partsManagement_savedSearches", JSON.stringify(newSearches));
-  };
-
-  // 删除已保存的查询条件
-  const handleDeleteSearch = (index: number) => {
-    const deletedSearch = savedSearches[index];
-    const updated = savedSearches.filter((_, i) => i !== index);
-    setSavedSearches(updated);
-    localStorage.setItem("partsManagement_savedSearches", JSON.stringify(updated));
-
-    // 如果删除的是当前方案，切换到"全部查询条件"
-    if (deletedSearch.name === currentScheme) {
-      setCurrentScheme(ALL_FIELDS_SCHEME);
-      setSearchFields(defaultSearchFields);
-      searchForm.resetFields();
-    }
-
-    // 如果删除的是默认方案，清除默认方案设置
-    if (deletedSearch.name === defaultScheme) {
-      setDefaultScheme(null);
-      localStorage.removeItem("partsManagement_defaultScheme");
-    }
-
-    message.success("已删除");
-  };
-
-  // 重命名查询方案
-  const handleRenameScheme = (index: number, newName: string) => {
-    const oldName = savedSearches[index].name;
-
-    // 检查新名称是否与其他方案重复
-    const isDuplicate = savedSearches.some((s, i) => i !== index && s.name === newName);
-    if (isDuplicate) {
-      message.warning("方案名称已存在");
-      return;
-    }
-
-    const updated = [...savedSearches];
-    updated[index] = { ...updated[index], name: newName };
-    setSavedSearches(updated);
-    localStorage.setItem("partsManagement_savedSearches", JSON.stringify(updated));
-
-    // 如果重命名的是当前方案，更新当前方案名称
-    if (oldName === currentScheme) {
-      setCurrentScheme(newName);
-    }
-
-    // 如果重命名的是默认方案，更新默认方案名称
-    if (oldName === defaultScheme) {
-      setDefaultScheme(newName);
-      localStorage.setItem("partsManagement_defaultScheme", newName);
-    }
-
-    message.success("重命名成功");
-  };
-
-  // 设置默认查询方案
-  const handleSetDefaultScheme = (schemeName: string) => {
-    setDefaultScheme(schemeName);
-    localStorage.setItem("partsManagement_defaultScheme", schemeName);
-    message.success(`已设置"${schemeName}"为默认方案`);
-  };
-
-  // 取消默认查询方案
-  const handleCancelDefaultScheme = () => {
-    setDefaultScheme(null);
-    localStorage.removeItem("partsManagement_defaultScheme");
-    message.success("已取消默认方案");
-  };
-
-  // 页面加载时自动应用默认方案
-  useEffect(() => {
-    // 只在首次加载时应用默认方案，避免保存新方案时触发
-    if (hasLoadedDefaultScheme.current) {
-      return;
-    }
-
-    if (defaultScheme && savedSearches.length > 0) {
-      const defaultSearch = savedSearches.find((s) => s.name === defaultScheme);
-      if (defaultSearch) {
-        // 延迟加载，确保其他初始化完成
-        setTimeout(() => {
-          handleLoadSearch(defaultSearch);
-          hasLoadedDefaultScheme.current = true; // 标记已加载
-        }, 100);
-      }
-    }
-  }, [defaultScheme, savedSearches.length]); // 只在defaultScheme或savedSearches加载完成时触发
-
-
   // 尺寸弹框状态
   const [sizeModalVisible, setSizeModalVisible] = useState(false);
-  // 当前正在编辑的行key，用于回填尺寸
-  // 注意：editingKey 已经是 state 了，但我们需要知道当前是哪一行触发了弹框，
-  // 虽然通常就是 editingKey 对应的行，但为了保险起见还是记录一下或者直接用 editingKey
 
-  const handleSizeSelect = (selectedSize: string) => {
-    // 将选中的尺寸回填到 Form 中
-    form.setFieldsValue({
-      size: selectedSize,
-    });
-    setSizeModalVisible(false);
-  };
-
-  const openSizeModal = () => {
-    setSizeModalVisible(true);
-  };
-
-  const isEditing = (record: Part) => record.key === editingKey;
-
-  // 表格容器 ref，用于获取表格位置和高度
+  // 表格容器 ref
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const [tableScrollY, setTableScrollY] = useState<number>(400);
 
@@ -489,12 +81,6 @@ const PartsManagement: React.FC = () => {
     if (!tableContainerRef.current) return;
     const resizeObserver = new ResizeObserver((entries) => {
       for (let entry of entries) {
-        // addButton: 32px + 12px = 44px
-        // padding/margin: ~32px
-        // pagination: ~64px (24px height + 16px margin + buffer)
-        // table header: ~39px
-        // table outer border: ~2px
-        // target roughly height - 150px
         const targetY = entry.contentRect.height - 150;
         requestAnimationFrame(() => {
           setTableScrollY(Math.max(200, targetY));
@@ -504,8 +90,6 @@ const PartsManagement: React.FC = () => {
     resizeObserver.observe(tableContainerRef.current);
     return () => resizeObserver.disconnect();
   }, []);
-
-
 
   // 加载数据
   const fetchData = async (params: any = {}) => {
@@ -531,32 +115,75 @@ const PartsManagement: React.FC = () => {
     fetchData();
   }, []);
 
-  // 搜索
-  const handleSearch = () => {
-    const values = searchForm.getFieldsValue();
-
-    // 处理日期范围
-    const searchParams = { ...values };
-    if (values.productionDate && Array.isArray(values.productionDate) && values.productionDate.length === 2) {
-      const [start, end] = values.productionDate;
-      if (start && end && typeof start.format === 'function' && typeof end.format === 'function') {
-        searchParams.productionDateStart = start.format('YYYY-MM-DD');
-        searchParams.productionDateEnd = end.format('YYYY-MM-DD');
-      }
-      delete searchParams.productionDate;
-    }
-
+  // 处理查询
+  const handleSearch = (conditions: Record<string, any>) => {
     setPagination((prev) => ({ ...prev, current: 1 }));
-    fetchData({ ...searchParams, page: 1 });
+    fetchData({ ...conditions, page: 1 });
   };
 
-  // 重置
+  // 处理重置
   const handleReset = () => {
-    searchForm.resetFields();
     setSortParams({});
     setPagination((prev) => ({ ...prev, current: 1 }));
-    setFilledCount(0); // 重置计数
     fetchData({ page: 1, sortField: undefined, sortOrder: undefined });
+  };
+
+  // 处理选择变化
+  const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
+    setSelectedRowKeys(newSelectedRowKeys);
+  };
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning("请先选择要删除的数据");
+      return;
+    }
+
+    Modal.confirm({
+      title: "确认删除",
+      content: `确定要删除选中的 ${selectedRowKeys.length} 条数据吗？`,
+      okText: "确定",
+      cancelText: "取消",
+      okType: "danger",
+      onOk: async () => {
+        setLoading(true);
+        try {
+          for (const key of selectedRowKeys) {
+            await partsService.delete(key as string);
+          }
+          message.success("批量删除成功");
+          setSelectedRowKeys([]);
+          fetchData();
+        } catch (error) {
+          message.error("批量删除失败");
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
+  };
+
+  // 行选择配置
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: onSelectChange,
+    getCheckboxProps: () => ({
+      disabled: editingKey !== "",
+    }),
+  };
+
+  const isEditing = (record: Part) => record.key === editingKey;
+
+  const handleSizeSelect = (selectedSize: string) => {
+    form.setFieldsValue({
+      size: selectedSize,
+    });
+    setSizeModalVisible(false);
+  };
+
+  const openSizeModal = () => {
+    setSizeModalVisible(true);
   };
 
   // 编辑
@@ -671,7 +298,6 @@ const PartsManagement: React.FC = () => {
       field: Array.isArray(sorter) ? sorter[0].field : sorter.field,
       order: Array.isArray(sorter) ? sorter[0].order : sorter.order,
     };
-    // 如果 order 为空，说明取消了排序
     if (!newSortParams.order) {
       newSortParams.field = undefined;
     }
@@ -687,7 +313,6 @@ const PartsManagement: React.FC = () => {
       pageSize: paginationConfig.pageSize,
       sortField: newSortParams.field,
       sortOrder: newSortParams.order,
-      ...searchForm.getFieldsValue(),
     });
   };
 
@@ -1065,171 +690,6 @@ const PartsManagement: React.FC = () => {
 
   const columns = getColumns();
 
-
-
-  // 查询字段配置 - 包含所有列表字段
-  const defaultSearchFields = [
-    { name: "partNo", label: "配件编号", type: "input" },
-    { name: "partName", label: "配件名称", type: "input" },
-    { name: "partNameEn", label: "英文名称", type: "input" },
-    { name: "size", label: "尺寸", type: "input" },
-    { name: "section", label: "科组", type: "select", options: sectionOptions },
-    { name: "quantity", label: "用量", type: "number" },
-    { name: "status", label: "状态", type: "select", options: statusOptions },
-    { name: "remark", label: "备注", type: "input" },
-    { name: "manufacturer", label: "制造商", type: "input" },
-    { name: "material", label: "材质", type: "input" },
-    { name: "weight", label: "重量(g)", type: "number" },
-    { name: "price", label: "单价(元)", type: "number" },
-    { name: "supplier", label: "供应商", type: "input" },
-    { name: "level", label: "等级", type: "select", options: levelOptions },
-    { name: "color", label: "颜色", type: "input" },
-    { name: "unit", label: "单位", type: "input" },
-    { name: "productionDate", label: "生产日期", type: "dateRange" },
-    { name: "validityPeriod", label: "有效期(月)", type: "number" },
-    { name: "version", label: "版本", type: "input" },
-    { name: "safetyStock", label: "安全库存", type: "number" },
-    { name: "maxStock", label: "最大库存", type: "number" },
-    { name: "location", label: "存放位置", type: "input" },
-    { name: "inspector", label: "检验员", type: "input" },
-    { name: "certNo", label: "合格证号", type: "input" },
-    { name: "drawingNo", label: "图纸号", type: "input" },
-    { name: "batchNo", label: "批次号", type: "input" },
-    { name: "isFragile", label: "是否易碎", type: "select", options: fragileOptions },
-    { name: "compatibility", label: "适用车型", type: "input" },
-  ];
-
-  // 查询字段编辑状态
-  const [isEditingFields, setIsEditingFields] = useState(false);
-  const [searchFields, setSearchFields] = useState(defaultSearchFields);
-
-  // 选中的字段（用于"全部查询条件"模式下保存查询方案）
-  const [selectedFieldNames, setSelectedFieldNames] = useState<string[]>([]);
-
-  // 保存编辑前的字段配置（用于取消编辑时恢复）
-  const [fieldsBeforeEdit, setFieldsBeforeEdit] = useState<typeof defaultSearchFields>([]);
-
-  // 从 localStorage 加载自定义字段配置（包括"全部查询条件"下的自定义排序）
-  useEffect(() => {
-    const saved = localStorage.getItem("partsManagement_searchFields");
-    if (saved) {
-      try {
-        const savedFields = JSON.parse(saved);
-        // 更新localStorage中的旧配置，将生产日期字段的type改为dateRange
-        const updatedFields = savedFields.map((field: any) => {
-          if (field.name === 'productionDate' && field.type === 'input') {
-            return { ...field, type: 'dateRange' };
-          }
-          return field;
-        });
-        setSearchFields(updatedFields);
-        // 保存更新后的配置
-        localStorage.setItem("partsManagement_searchFields", JSON.stringify(updatedFields));
-      } catch (e) {
-        console.error("Failed to load search fields:", e);
-      }
-    }
-  }, []);
-
-  // 保存字段配置到 localStorage
-  const saveFieldsConfig = (fields: typeof defaultSearchFields) => {
-    setSearchFields(fields);
-
-    // 如果当前是某个查询方案（不是"全部查询条件"），需要更新该方案的字段配置
-    if (currentScheme !== ALL_FIELDS_SCHEME) {
-      const schemeIndex = savedSearches.findIndex((s) => s.name === currentScheme);
-      if (schemeIndex !== -1) {
-        const updatedSearches = [...savedSearches];
-        updatedSearches[schemeIndex] = {
-          ...updatedSearches[schemeIndex],
-          fields: fields.map((f) => f.name),
-        };
-        setSavedSearches(updatedSearches);
-        localStorage.setItem("partsManagement_savedSearches", JSON.stringify(updatedSearches));
-      }
-    } else {
-      // 如果是"全部查询条件"，保存到全局配置
-      localStorage.setItem("partsManagement_searchFields", JSON.stringify(fields));
-    }
-  };
-
-  // 拖拽传感器
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  // 当前拖动的字段
-  const [activeId, setActiveId] = useState<string | null>(null);
-  // 当前悬停的目标字段
-  const [overId, setOverId] = useState<string | null>(null);
-
-
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  // 处理拖拽开始
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
-
-  // 处理拖拽悬停
-  const handleDragOver = (event: DragOverEvent) => {
-    const { over } = event;
-    setOverId(over ? (over.id as string) : null);
-  };
-
-  // 处理拖拽结束
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = searchFields.findIndex((f) => f.name === active.id);
-      const newIndex = searchFields.findIndex((f) => f.name === over.id);
-      const newFields = arrayMove(searchFields, oldIndex, newIndex);
-      saveFieldsConfig(newFields);
-    }
-    setActiveId(null);
-    setOverId(null);
-  };
-
-  // 处理拖拽取消
-  const handleDragCancel = () => {
-    setActiveId(null);
-    setOverId(null);
-  };
-
-  // 处理查询方案拖拽开始
-  const handleSchemeDragStart = () => {
-    // 拖拽开始逻辑
-  };
-
-  // 处理查询方案拖拽结束
-  const handleSchemeDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = parseInt((active.id as string).replace('scheme-', ''));
-      const newIndex = parseInt((over.id as string).replace('scheme-', ''));
-      handleSchemeReorder(oldIndex, newIndex);
-    }
-  };
-
-  // 处理查询方案拖拽取消
-  const handleSchemeDragCancel = () => {
-    // 拖拽取消逻辑
-  };
-
-  // 删除字段
-  const handleDeleteField = (fieldName: string) => {
-    const newFields = searchFields.filter((f) => f.name !== fieldName);
-    saveFieldsConfig(newFields);
-    message.success("已删除字段");
-  };
-
-  // 展开时显示全部字段，收起时也显示全部字段（通过CSS控制显示行数）
-  const visibleFields = searchFields;
-  const hasMoreFields = searchFields.length > 6; // 假设一行能放6个左右
-
   return (
     <div
       style={{
@@ -1239,397 +699,16 @@ const PartsManagement: React.FC = () => {
         overflow: "hidden",
       }}
     >
-
-      {/* 搜索区域 */}
-      <div
-        style={{
-          padding: 16,
-          background: "#fff",
-          marginBottom: 12,
-          borderRadius: 6,
-          flexShrink: 0,
-        }}
-      >
-        {/* 查询方案下拉菜单 - 显示在顶部的头部区域 */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          marginBottom: 16,
-          paddingBottom: 12,
-          borderBottom: "1px solid #f0f0f0"
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{
-              width: 3,
-              height: 14,
-              backgroundColor: "#1890ff",
-              borderRadius: 2
-            }} />
-            <span style={{ fontWeight: 600, fontSize: 14, color: "#262626", marginRight: 4 }}>查询模板:</span>
-            <Dropdown
-              open={dropdownOpen}
-              onOpenChange={setDropdownOpen}
-              popupRender={() => (
-                <div
-                  style={{
-                    backgroundColor: "#fff",
-                    borderRadius: 6,
-                    boxShadow: "0 3px 6px -4px rgba(0,0,0,.12), 0 6px 16px 0 rgba(0,0,0,.08), 0 9px 28px 8px rgba(0,0,0,.05)",
-                    minWidth: 240,
-                  }}
-                >
-                  {/* 全部查询条件 - 固定不可拖拽 */}
-                  <div
-                    onClick={() => {
-                      handleLoadAllFields();
-                      setDropdownOpen(false);
-                    }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "5px 12px",
-                      cursor: "pointer",
-                      backgroundColor: "transparent",
-                      transition: "background-color 0.2s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = "#f5f5f5";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    {currentScheme === ALL_FIELDS_SCHEME ? (
-                      <CheckOutlined style={{ color: "#1890ff", fontSize: 14 }} />
-                    ) : (
-                      <div style={{ width: 14 }}></div>
-                    )}
-                    <span
-                      style={{
-                        fontWeight: currentScheme === ALL_FIELDS_SCHEME ? 600 : 400,
-                      }}
-                    >
-                      {ALL_FIELDS_SCHEME}
-                    </span>
-                  </div>
-
-                  {/* 分隔线 */}
-                  {savedSearches.length > 0 && <Divider style={{ margin: "4px 0" }} />}
-
-                  {/* 可拖拽的查询方案列表 */}
-                  {savedSearches.length > 0 && (
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragStart={handleSchemeDragStart}
-                      onDragEnd={handleSchemeDragEnd}
-                      onDragCancel={handleSchemeDragCancel}
-                    >
-                      <SortableContext
-                        items={savedSearches.map((_, index) => `scheme-${index}`)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        {savedSearches.map((search, index) => (
-                          <SortableSchemeItem
-                            key={`scheme-${index}`}
-                            search={search}
-                            index={index}
-                            currentScheme={currentScheme}
-                            defaultScheme={defaultScheme}
-                            onLoad={() => {
-                              handleLoadSearch(search);
-                              setDropdownOpen(false);
-                            }}
-                            onSetDefault={() => handleSetDefaultScheme(search.name)}
-                            onCancelDefault={handleCancelDefaultScheme}
-                            onDelete={() => handleDeleteSearch(index)}
-                            onRename={(newName) => handleRenameScheme(index, newName)}
-                          />
-                        ))}
-                      </SortableContext>
-                    </DndContext>
-                  )}
-                </div>
-              )}
-              placement="bottomLeft"
-              trigger={["click"]}
-            >
-              <div
-                style={{
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                  backgroundColor: "#f5f5f5",
-                  transition: "all 0.3s",
-                }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = "#e6f7ff"}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = "#f5f5f5"}
-              >
-                {currentScheme === defaultScheme &&
-                  currentScheme !== ALL_FIELDS_SCHEME ? (
-                  <PushpinFilled style={{ color: "#1890ff", fontSize: 12 }} />
-                ) : null}
-                <span style={{ fontWeight: 600, color: "#1890ff", fontSize: 13 }}>{currentScheme}</span>
-                <DownOutlined style={{ fontSize: 10, color: "#1890ff" }} />
-              </div>
-            </Dropdown>
-          </div>
-        </div>
-
-        <Form
-          form={searchForm}
-          layout="vertical"
-          onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-          onValuesChange={(changedValues) => {
-            setFilledCount(getFilledFieldsCount());
-
-            // 如果在"全部查询条件"且编辑模式下，当用户输入值时自动勾选对应的复选框
-            if (currentScheme === ALL_FIELDS_SCHEME && isEditingFields) {
-              Object.keys(changedValues).forEach((fieldName) => {
-                const value = changedValues[fieldName];
-                // 检查值是否有效（不为空、undefined、null）
-                const hasValue = value !== undefined && value !== null && value !== "" &&
-                  (Array.isArray(value) ? value.length > 0 : true);
-
-                if (hasValue && !selectedFieldNames.includes(fieldName)) {
-                  // 如果有值且未选中，自动勾选
-                  setSelectedFieldNames([...selectedFieldNames, fieldName]);
-                } else if (!hasValue && selectedFieldNames.includes(fieldName)) {
-                  // 如果值被清空且已选中，取消勾选
-                  setSelectedFieldNames(selectedFieldNames.filter((name) => name !== fieldName));
-                }
-              });
-            }
-          }}
-        >
-          {/* 字段区域 */}
-          <div
-            style={{
-              maxHeight: expanded ? "none" : "70px",
-              overflow: "hidden",
-              transition: "max-height 0.3s ease",
-            }}
-          >
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragEnd={handleDragEnd}
-              onDragCancel={handleDragCancel}
-            >
-              <SortableContext
-                items={visibleFields.map((f) => f.name)}
-                strategy={verticalListSortingStrategy}
-              >
-                <Row gutter={[16, 8]}>
-                  {visibleFields.map((field) => (
-                    <SortableField
-                      key={field.name}
-                      field={field}
-                      isEditing={isEditingFields}
-                      onDelete={() => handleDeleteField(field.name)}
-                      isActiveField={activeId === field.name}
-                      isOverField={overId === field.name}
-                      showCheckbox={currentScheme === ALL_FIELDS_SCHEME && isEditingFields}
-                      isChecked={selectedFieldNames.includes(field.name)}
-                      onCheckChange={(checked) => {
-                        if (checked) {
-                          setSelectedFieldNames([...selectedFieldNames, field.name]);
-                        } else {
-                          setSelectedFieldNames(selectedFieldNames.filter((name) => name !== field.name));
-                        }
-                      }}
-                      disableInput={false}
-                    />
-                  ))}
-                </Row>
-              </SortableContext>
-              {/* 拖动时的浮动预览 */}
-              <DragOverlay>
-                {activeId ? (
-                  <div
-                    style={{
-                      backgroundColor: "#fff",
-                      border: "2px solid #1890ff",
-                      borderRadius: 6,
-                      padding: 8,
-                      boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
-                      cursor: "grabbing",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <HolderOutlined style={{ color: "#1890ff", fontSize: 14 }} />
-                      <span style={{ fontWeight: 500 }}>
-                        {visibleFields.find((f) => f.name === activeId)?.label}
-                      </span>
-                    </div>
-                  </div>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
-          </div>
-          {/* 按钮区域 - 放在字段下方 */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: 8,
-            }}
-          >
-            <Space>
-              {hasMoreFields && (
-                <Badge count={filledCount} offset={[0, 2]} style={{ zIndex: 999 }}>
-                  <Button
-                    onClick={() => setExpanded(!expanded)}
-                    icon={expanded ? <UpOutlined /> : <DownOutlined />}
-                    iconPlacement="start"
-                    disabled={isEditingFields}
-                    style={{ marginRight: 8 }}
-                  >
-                    {expanded ? "收起" : "展开"}
-                  </Button>
-                </Badge>
-              )}
-              {/* 编辑/恢复按钮 */}
-              {isEditingFields ? (
-                <>
-                  <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    onClick={() => {
-                      setIsEditingFields(false);
-                      setSelectedFieldNames([]); // 清空选中的字段
-
-                      // 如果当前不是"全部查询条件"，需要保存查询条件的值到方案中
-                      if (currentScheme !== ALL_FIELDS_SCHEME) {
-                        const schemeIndex = savedSearches.findIndex((s) => s.name === currentScheme);
-                        if (schemeIndex !== -1) {
-                          const conditions = searchForm.getFieldsValue();
-
-                          // 处理日期范围，转换为字符串以便保存到localStorage
-                          const processedConditions = { ...conditions };
-                          if (processedConditions.productionDate && Array.isArray(processedConditions.productionDate)) {
-                            processedConditions.productionDate = processedConditions.productionDate.map((date: any) => {
-                              if (date && typeof date.format === 'function') {
-                                return date.format('YYYY-MM-DD');
-                              }
-                              return date;
-                            });
-                          }
-
-                          const updatedSearches = [...savedSearches];
-                          updatedSearches[schemeIndex] = {
-                            ...updatedSearches[schemeIndex],
-                            conditions: processedConditions,
-                          };
-                          setSavedSearches(updatedSearches);
-                          localStorage.setItem("partsManagement_savedSearches", JSON.stringify(updatedSearches));
-                        }
-                      } else {
-                        // "全部查询条件"模式：保存当前字段排列顺序到 localStorage
-                        localStorage.setItem("partsManagement_searchFields", JSON.stringify(searchFields));
-                      }
-
-                      message.success("已保存字段配置");
-                    }}
-                    style={{ marginLeft: 8 }}
-                  >
-                    保成编辑
-                  </Button>
-                  <Button
-                    icon={<CloseOutlined />}
-                    onClick={() => {
-                      // 恢复到编辑前的字段配置
-                      setSearchFields([...fieldsBeforeEdit]);
-                      setIsEditingFields(false);
-                      setSelectedFieldNames([]); // 清空选中的字段
-                    }}
-                    style={{ marginLeft: 8 }}
-                  >
-                    取消编辑
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    icon={<EditOutlined />}
-                    onClick={() => {
-                      // 保存编辑前的字段配置
-                      setFieldsBeforeEdit([...searchFields]);
-                      setIsEditingFields(true);
-                      setExpanded(true); // 编辑时自动展开
-                      // 如果是"全部查询条件"，不默认选中任何字段
-                      if (currentScheme === ALL_FIELDS_SCHEME) {
-                        setSelectedFieldNames([]);
-                      }
-                    }}
-                  >
-                    编辑字段
-                  </Button>
-                </>
-              )}
-            </Space>
-            <Space>
-              {/* 保存查询方案按钮 - 只在"全部查询条件"时显示 */}
-              {currentScheme === ALL_FIELDS_SCHEME && (
-                <Button
-                  icon={<SaveOutlined />}
-                  onClick={() => setSaveModalVisible(true)}
-                  disabled={isEditingFields && selectedFieldNames.length === 0}
-                >
-                  保存查询模板
-                </Button>
-              )}
-              <Button
-                type="primary"
-                icon={<SearchOutlined />}
-                onClick={handleSearch}
-                loading={loading}
-                disabled={isEditingFields}
-              >
-                查询
-              </Button>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={handleReset}
-                disabled={isEditingFields}
-              >
-                重置
-              </Button>
-            </Space>
-          </div>
-        </Form>
-      </div>
-
-      {/* 保存查询条件弹窗 */}
-      <Modal
-        title="保存查询条件"
-        open={saveModalVisible}
-        onOk={handleSaveSearch}
-        onCancel={() => {
-          setSaveModalVisible(false);
-        }}
-        okText="保存"
-        cancelText="取消"
-        destroyOnHidden
-      >
-        <Form layout="vertical">
-          <Form.Item label="查询条件名称" required>
-            <Input
-              ref={searchNameInputRef}
-              placeholder="请输入查询条件名称"
-              onPressEnter={handleSaveSearch}
-              autoFocus
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {/* 使用 SvQuery 组件替换原有的查询区域 */}
+      <SvQuery
+        templateService={partsQueryTemplateService}
+        fieldService={partsQueryFieldService}
+        onSearch={handleSearch}
+        onReset={handleReset}
+        defaultExpanded={false}
+        showTemplateManager={true}
+        storageKey="partsManagement"
+      />
 
       {/* 尺寸选择弹框 */}
       <SizeSelectModal
