@@ -21,7 +21,7 @@ interface ResizeContextType {
 const ResizeContext = React.createContext<ResizeContextType | null>(null);
 
 // 可调整列宽的表头组件 - 使用原生鼠标事件 + 列头下拉菜单
-const ResizableTitle = (props: any) => {
+const ResizableTitle = React.memo((props: any) => {
     // 从 props 中提取 onClick（antd 排序用），不传给 th，而是仅传给内容区域
     const { onResize, width, dataIndex, onClick: sortOnClick, title, ...restProps } = props;
     const resizeContext = React.useContext(ResizeContext);
@@ -78,35 +78,39 @@ const ResizableTitle = (props: any) => {
         }
     };
 
-    const dropdownMenuItems = showDropdown && resizeContext ? [
-        {
-            key: "columns",
-            label: "列",
-            icon: <AppstoreOutlined />,
-            popupClassName: "sv-table-column-submenu",
-            children: resizeContext.allColumns.map((col) => ({
-                key: `col-${col.dataIndex}`,
-                label: (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }} onClick={(e) => { e.stopPropagation(); resizeContext?.toggleColumnVisibility(col.dataIndex); }}>
-                        <Checkbox checked={!resizeContext.hiddenColumns.includes(col.dataIndex)} style={{ pointerEvents: "none" }} />
-                        <span>{col.title}</span>
-                    </div>
-                ),
-            })),
-        },
-        {
-            key: "freeze",
-            label: "冻结列",
-            icon: <LockOutlined />,
-            disabled: isFrozen,
-        },
-        {
-            key: "unfreeze",
-            label: "解冻列",
-            icon: <UnlockOutlined />,
-            disabled: !isFrozen,
-        },
-    ] : [];
+    const dropdownMenuItems = useMemo(() => {
+        if (!showDropdown || !resizeContext) return [];
+
+        return [
+            {
+                key: "columns",
+                label: "列",
+                icon: <AppstoreOutlined />,
+                popupClassName: "sv-table-column-submenu",
+                children: resizeContext.allColumns.map((col) => ({
+                    key: `col-${col.dataIndex}`,
+                    label: (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }} onClick={(e) => { e.stopPropagation(); resizeContext?.toggleColumnVisibility(col.dataIndex); }}>
+                            <Checkbox checked={!resizeContext.hiddenColumns.includes(col.dataIndex)} style={{ pointerEvents: "none" }} />
+                            <span>{col.title}</span>
+                        </div>
+                    ),
+                })),
+            },
+            {
+                key: "freeze",
+                label: "冻结列",
+                icon: <LockOutlined />,
+                disabled: isFrozen,
+            },
+            {
+                key: "unfreeze",
+                label: "解冻列",
+                icon: <UnlockOutlined />,
+                disabled: !isFrozen,
+            },
+        ];
+    }, [showDropdown, resizeContext, isFrozen]);
 
     const isOperation = dataIndex === "operation" || dataIndex === "action";
     const draggable = !isFrozen && !isOperation;
@@ -255,7 +259,7 @@ const ResizableTitle = (props: any) => {
             <span className="column-resize-handle" onMouseDown={handleMouseDown} onClick={(e) => e.stopPropagation()} />
         </th>
     );
-};
+});
 
 export interface SvTableProps extends Omit<TableProps<any>, 'pagination' | 'onChange'> {
     // 是否显示分页（默认 true）
@@ -369,53 +373,57 @@ const SvTable: React.FC<SvTableProps> = (props) => {
         [paginationMode, props.onChange, onPaginationChange, svContext]
     );
 
-    let baseColumns = props.columns || [];
+    const baseColumns = useMemo(() => {
+        let columns = props.columns || [];
 
-    // Parse columns from children if no columns prop is provided
-    if (baseColumns.length === 0 && props.children) {
-        const items = Children.map(props.children, (child) => {
-            if (React.isValidElement(child)) {
-                return child.props as SvItemProps;
-            }
-            return null;
-        })?.filter(Boolean) as SvItemProps[];
-
-        baseColumns = items.map((item) => ({
-            title: item.label,
-            dataIndex: item.name,
-            key: item.name,
-            width: item.width,
-            render: item.render ? item.render : (text: any) => {
-                if (item.type === 'date' && item.format) {
-                    return text; // Date format logic can be applied here
+        // Parse columns from children if no columns prop is provided
+        if (columns.length === 0 && props.children) {
+            const items = Children.map(props.children, (child) => {
+                if (React.isValidElement(child)) {
+                    return child.props as SvItemProps;
                 }
-                return text;
-            }
-        }));
+                return null;
+            })?.filter(Boolean) as SvItemProps[];
 
-        // Append Action Column if needed and context is available
-        if (svContext) {
-            baseColumns.push({
-                title: '操作',
-                key: 'action',
-                dataIndex: 'action',
-                width: 150,
-                render: (_: any, record: any) => (
-                    <Space size="small">
-                        <Button
-                            type="text"
-                            icon={<EditOutlined />}
-                            style={{ color: '#4E5358' }}
-                            onClick={() => svContext.openEditModal(record)}
-                        />
-                        <Popconfirm title="确定删除吗?" onConfirm={() => svContext.deleteItem(record.id || record.key)}>
-                            <Button type="text" danger icon={<DeleteOutlined />} />
-                        </Popconfirm>
-                    </Space>
-                ),
-            });
+            columns = items.map((item) => ({
+                title: item.label,
+                dataIndex: item.name,
+                key: item.name,
+                width: item.width,
+                render: item.render ? item.render : (text: any) => {
+                    if (item.type === 'date' && item.format) {
+                        return text; // Date format logic can be applied here
+                    }
+                    return text;
+                }
+            }));
+
+            // Append Action Column if needed and context is available
+            if (svContext) {
+                columns.push({
+                    title: '操作',
+                    key: 'action',
+                    dataIndex: 'action',
+                    width: 150,
+                    render: (_: any, record: any) => (
+                        <Space size="small">
+                            <Button
+                                type="text"
+                                icon={<EditOutlined />}
+                                style={{ color: '#4E5358' }}
+                                onClick={() => svContext.openEditModal(record)}
+                            />
+                            <Popconfirm title="确定删除吗?" onConfirm={() => svContext.deleteItem(record.id || record.key)}>
+                                <Button type="text" danger icon={<DeleteOutlined />} />
+                            </Popconfirm>
+                        </Space>
+                    ),
+                });
+            }
         }
-    }
+
+        return columns;
+    }, [props.columns, props.children, svContext]);
 
     const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>(() => {
         const initialWidths: { [key: string]: number } = {};
@@ -660,69 +668,73 @@ const SvTable: React.FC<SvTableProps> = (props) => {
     }, []);
 
     // Apply column customizations
-    let processedColumns = baseColumns
-        .filter(col => {
-            const key = (col as any).dataIndex || col.key;
-            return !hiddenColumns.includes(key);
-        })
-        .map(col => {
-            const key = (col as any).dataIndex || col.key;
-            const isFrozen = frozenColumns.includes(key);
-            const isAction = key === 'operation' || key === 'action';
+    const processedColumns = useMemo(() => {
+        let columns = baseColumns
+            .filter(col => {
+                const key = (col as any).dataIndex || col.key;
+                return !hiddenColumns.includes(key);
+            })
+            .map(col => {
+                const key = (col as any).dataIndex || col.key;
+                const isFrozen = frozenColumns.includes(key);
+                const isAction = key === 'operation' || key === 'action';
 
-            let fixedProp = col.fixed;
-            if (!fixedProp) {
-                if (isAction) fixedProp = "end";
-                else if (isFrozen) fixedProp = "start";
-            }
+                let fixedProp = col.fixed;
+                if (!fixedProp) {
+                    if (isAction) fixedProp = "end";
+                    else if (isFrozen) fixedProp = "start";
+                }
 
-            return {
-                ...col,
-                width: columnWidths[key] || col.width || 120,
-                fixed: fixedProp,
-                onHeaderCell: (column: any) => ({
-                    ...((col as any).onHeaderCell?.(column) || {}),
-                    width: columnWidths[key] || column.width || 120,
-                    dataIndex: key,
-                    'data-index': key,
-                }),
-                onCell: (record: any, rowIndex: number) => ({
-                    ...((col as any).onCell?.(record, rowIndex) || {}),
-                    'data-index': key,
-                }),
-            };
+                return {
+                    ...col,
+                    width: columnWidths[key] || col.width || 120,
+                    fixed: fixedProp,
+                    onHeaderCell: (column: any) => ({
+                        ...((col as any).onHeaderCell?.(column) || {}),
+                        width: columnWidths[key] || column.width || 120,
+                        dataIndex: key,
+                        'data-index': key,
+                    }),
+                    onCell: (record: any, rowIndex: number) => ({
+                        ...((col as any).onCell?.(record, rowIndex) || {}),
+                        'data-index': key,
+                    }),
+                };
+            });
+
+        // Sort by columnOrder if there is one
+        if (columnOrder.length > 0) {
+            columns = columns.sort((a: any, b: any) => {
+                const aKey = a.dataIndex || a.key;
+                const bKey = b.dataIndex || b.key;
+                const aIndex = columnOrder.indexOf(aKey);
+                const bIndex = columnOrder.indexOf(bKey);
+                if (aIndex === -1 && bIndex === -1) return 0;
+                if (aIndex === -1) return 1;
+                if (bIndex === -1) return -1;
+                return aIndex - bIndex;
+            });
+        }
+
+        // Sort frozen columns to start and action to end
+        columns = columns.sort((a: any, b: any) => {
+            if (a.fixed === 'end' && b.fixed !== 'end') return 1;
+            if (a.fixed !== 'end' && b.fixed === 'end') return -1;
+            if (a.fixed === 'start' && b.fixed !== 'start') return -1;
+            if (a.fixed !== 'start' && b.fixed === 'start') return 1;
+            return 0;
         });
 
-    // Sort by columnOrder if there is one
-    if (columnOrder.length > 0) {
-        processedColumns = processedColumns.sort((a: any, b: any) => {
-            const aKey = a.dataIndex || a.key;
-            const bKey = b.dataIndex || b.key;
-            const aIndex = columnOrder.indexOf(aKey);
-            const bIndex = columnOrder.indexOf(bKey);
-            if (aIndex === -1 && bIndex === -1) return 0;
-            if (aIndex === -1) return 1;
-            if (bIndex === -1) return -1;
-            return aIndex - bIndex;
-        });
-    }
+        return columns;
+    }, [baseColumns, hiddenColumns, frozenColumns, columnWidths, columnOrder]);
 
-    // Sort frozen columns to start and action to end
-    processedColumns = processedColumns.sort((a: any, b: any) => {
-        if (a.fixed === 'end' && b.fixed !== 'end') return 1;
-        if (a.fixed !== 'end' && b.fixed === 'end') return -1;
-        if (a.fixed === 'start' && b.fixed !== 'start') return -1;
-        if (a.fixed !== 'start' && b.fixed === 'start') return 1;
-        return 0;
-    });
-
-    const components = {
+    const components = useMemo(() => ({
         ...props.components,
         header: {
             ...(props.components?.header || {}),
             cell: ResizableTitle,
         }
-    };
+    }), [props.components]);
 
     return (
         <div ref={tableContainerRef} style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
