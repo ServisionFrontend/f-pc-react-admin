@@ -867,121 +867,75 @@ const SvQuery: React.FC<SvQueryProps> = ({
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 onValuesChange={() => setFilledCount(getFilledFieldsCount())}
             >
-                <div
-                    style={{
-                        maxHeight: expanded ? 'none' : '70px',
-                        overflow: 'hidden',
-                        transition: 'max-height 0.3s ease',
-                    }}
-                >
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragStart={handleDragStart}
-                        onDragOver={handleDragOver}
-                        onDragEnd={handleDragEnd}
-                        onDragCancel={handleDragCancel}
+                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                    <div
+                        style={{
+                            flex: 1,
+                            maxHeight: expanded ? 'none' : '70px',
+                            overflow: 'hidden',
+                            transition: 'max-height 0.3s ease',
+                        }}
                     >
-                        <SortableContext
-                            items={searchFields.map((f) => f.name)}
-                            strategy={verticalListSortingStrategy}
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragStart={handleDragStart}
+                            onDragOver={handleDragOver}
+                            onDragEnd={handleDragEnd}
+                            onDragCancel={handleDragCancel}
                         >
-                            <Row gutter={[16, 8]}>
-                                {searchFields.map((field) => (
-                                    <SortableField
-                                        key={field.name}
-                                        field={field}
-                                        isEditing={isEditingFields}
-                                        onDelete={() => handleDeleteField(field.name)}
-                                        isActiveField={activeId === field.name}
-                                        isOverField={overId === field.name}
-                                        showCheckbox={currentScheme === ALL_FIELDS_SCHEME && isEditingFields}
-                                        isChecked={selectedFieldNames.includes(field.name)}
-                                        onCheckChange={(checked) => {
-                                            if (checked) {
-                                                setSelectedFieldNames([...selectedFieldNames, field.name]);
-                                            } else {
-                                                setSelectedFieldNames(selectedFieldNames.filter((name) => name !== field.name));
-                                            }
-                                        }}
-                                        disableInput={false}
-                                    />
-                                ))}
-                            </Row>
-                        </SortableContext>
-                        {/* 拖动时的浮动预览 */}
-                        <DragOverlay>
-                            {activeId ? (
-                                <div
-                                    style={{
-                                        backgroundColor: '#fff',
-                                        border: '2px solid #1890ff',
-                                        borderRadius: 6,
-                                        padding: 8,
-                                        boxShadow: '0 8px 16px rgba(0,0,0,0.15)',
-                                        cursor: 'grabbing',
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <HolderOutlined style={{ color: '#1890ff', fontSize: 14 }} />
-                                        <span style={{ fontWeight: 500 }}>
-                                            {searchFields.find((f) => f.name === activeId)?.label}
-                                        </span>
-                                    </div>
-                                </div>
-                            ) : null}
-                        </DragOverlay>
-                    </DndContext>
-                </div>
-
-                <div
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginTop: 8,
-                    }}
-                >
-                    <Space>
-                        {hasMoreFields && (
-                            <div style={{ marginRight: 10, display: 'inline-block' }}>
-                                <Badge count={filledCount} offset={[0, 2]} style={{ zIndex: 999 }}>
-                                    <Button
-                                        onClick={() => setExpanded(!expanded)}
-                                        icon={expanded ? <UpOutlined /> : <DownOutlined />}
-                                        disabled={isEditingFields}
-                                    >
-                                        {expanded ? '收起' : '展开'}
-                                    </Button>
-                                </Badge>
-                            </div>
-                        )}
-                        {/* 编辑/恢复按钮 */}
-                        {isEditingFields ? (
-                            <>
-                                <Button type="primary" onClick={handleFinishEditFields}>
-                                    完成
-                                </Button>
-                                <Button onClick={handleCancelEditFields}>
-                                    取消
-                                </Button>
-                            </>
-                        ) : (
-                            <Button icon={<EditOutlined />} onClick={handleStartEditFields}>
-                                编辑字段
-                            </Button>
-                        )}
-                    </Space>
-                    <Space>
-                        {showTemplateManager && currentScheme === ALL_FIELDS_SCHEME && !isEditingFields && (
-                            <Button
-                                icon={<SaveOutlined />}
-                                onClick={() => setSaveModalVisible(true)}
-                                disabled={isEditingFields && selectedFieldNames.length === 0}
+                            <SortableContext
+                                items={searchFields.map((f) => f.name)}
+                                strategy={verticalListSortingStrategy}
                             >
-                                保存查询模板
-                            </Button>
-                        )}
+                                <Row gutter={[16, 8]}>
+                                    {searchFields.map((field) => (
+                                        <SortableField
+                                            key={field.name}
+                                            field={field}
+                                            isEditing={isEditingFields}
+                                            onDelete={() => handleDeleteField(field.name)}
+                                            isActiveField={activeId === field.name}
+                                            isOverField={overId === field.name}
+                                            showCheckbox={currentScheme === ALL_FIELDS_SCHEME && isEditingFields}
+                                            isChecked={selectedFieldNames.includes(field.name)}
+                                            onCheckChange={(checked) => {
+                                                if (checked) {
+                                                    setSelectedFieldNames([...selectedFieldNames, field.name]);
+                                                } else {
+                                                    setSelectedFieldNames(selectedFieldNames.filter((name) => name !== field.name));
+                                                }
+                                            }}
+                                            disableInput={false}
+                                        />
+                                    ))}
+                                </Row>
+                            </SortableContext>
+                            {/* 拖动时的浮动预览 */}
+                            <DragOverlay>
+                                {activeId ? (
+                                    <div
+                                        style={{
+                                            backgroundColor: '#fff',
+                                            border: '2px solid #1890ff',
+                                            borderRadius: 6,
+                                            padding: 8,
+                                            boxShadow: '0 8px 16px rgba(0,0,0,0.15)',
+                                            cursor: 'grabbing',
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            <HolderOutlined style={{ color: '#1890ff', fontSize: 14 }} />
+                                            <span style={{ fontWeight: 500 }}>
+                                                {searchFields.find((f) => f.name === activeId)?.label}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </DragOverlay>
+                        </DndContext>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, paddingTop: 26 }}>
                         <Button
                             type="primary"
                             icon={<SearchOutlined />}
@@ -998,6 +952,56 @@ const SvQuery: React.FC<SvQueryProps> = ({
                         >
                             重置
                         </Button>
+                    </div>
+                </div>
+
+                <div
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'flex-start',
+                        alignItems: 'center',
+                        marginTop: 8,
+                    }}
+                >
+                    <Space>
+                        {hasMoreFields && (
+                            <div style={{ marginRight: 8, display: 'inline-block' }}>
+                                <Badge count={filledCount} offset={[0, 2]} style={{ zIndex: 999 }}>
+                                    <Button
+                                        onClick={() => setExpanded(!expanded)}
+                                        icon={expanded ? <UpOutlined /> : <DownOutlined />}
+                                        disabled={isEditingFields}
+                                    >
+                                        {expanded ? '收起' : '展开'}
+                                    </Button>
+                                </Badge>
+                            </div>
+                        )}
+                        {showTemplateManager && currentScheme === ALL_FIELDS_SCHEME && !isEditingFields && (
+                            <Button
+                                icon={<SaveOutlined />}
+                                onClick={() => setSaveModalVisible(true)}
+                                disabled={isEditingFields && selectedFieldNames.length === 0}
+                                style={{ marginRight: 8, display: 'inline-block' }}
+                            >
+                                保存模板
+                            </Button>
+                        )}
+                        {/* 编辑/恢复按钮 */}
+                        {isEditingFields ? (
+                            <>
+                                <Button type="primary" onClick={handleFinishEditFields}>
+                                    完成
+                                </Button>
+                                <Button onClick={handleCancelEditFields}>
+                                    取消
+                                </Button>
+                            </>
+                        ) : (
+                            <Button icon={<EditOutlined />} onClick={handleStartEditFields}>
+                                编辑字段
+                            </Button>
+                        )}
                     </Space>
                 </div>
             </Form>
