@@ -6,7 +6,7 @@ import { useTabsContext } from '../contexts/TabsContext';
 
 const TabBar = () => {
   const { tabs, activeKey, removeTab, setActiveTab, closeOtherTabs } = useTabsContext();
-  const [contextMenuTab, setContextMenuTab] = useState<string>('');
+  const [setContextMenuTab] = useState<string>('');
   const tabBarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
