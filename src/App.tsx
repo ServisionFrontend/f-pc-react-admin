@@ -10,6 +10,7 @@ import { TabsProvider } from './contexts/TabsContext';
 function App() {
   return (
     <ConfigProvider
+      componentSize="small"
       theme={{
         token: {
           colorPrimary: '#4E5358',
@@ -65,11 +66,11 @@ function App() {
             horizontalMargin: '0 0 8px 0',
           },
           Table: {
-            cellPaddingBlock: 8,
-            cellPaddingInline: 12,
+            cellPaddingBlock: 4,
+            cellPaddingInline: 8,
             headerBg: '#fafafa',
             rowHoverBg: '#f9fafb',
-            cellFontSize: 13,
+            cellFontSize: 12,
             headerColor: '#374151',
             borderColor: '#e5e7eb',
           },

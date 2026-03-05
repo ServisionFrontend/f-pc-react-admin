@@ -131,7 +131,7 @@ const Dashboard = () => {
                             dataSource={dataSource}
                             columns={columns}
                             pagination={false}
-                            size="middle"
+                            size="small"
                             rowClassName={() => 'hover-row'}
                         />
                     </Card>

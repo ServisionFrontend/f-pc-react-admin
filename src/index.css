@@ -198,7 +198,7 @@ body {
   font-size: 12px;
   letter-spacing: 0.02em;
   border-bottom: 2px solid #e5e7eb !important;
-  padding: 8px 12px !important;
+  padding: 3px 6px !important;
   white-space: nowrap;
 }
 
@@ -241,7 +241,7 @@ body {
 
 .ant-table-tbody>tr>td {
   border-bottom: 1px solid #f3f4f6 !important;
-  padding: 10px 12px !important;
+  padding: 3px 6px !important;
   color: #374151;
   font-size: 13px;
   transition: all 0.2s ease;
@@ -401,13 +401,18 @@ body {
 .full-height-table {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .full-height-table .ant-spin-nested-loading {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   height: 100%;
 }
 
@@ -415,6 +420,7 @@ body {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-height: 0;
   height: 100%;
 }
 
@@ -423,21 +429,37 @@ body {
   border-bottom: 1px solid #f3f4f6;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .full-height-table .ant-table-container {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 0 !important;
 }
 
 .full-height-table .ant-table-body {
-  flex: auto !important;
+  flex: 1 1 0 !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  min-height: 0;
+  max-height: 100% !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 .full-height-table .ant-pagination {
   margin-top: auto !important;
   padding-top: 16px;
+}
+
+.full-height-table .ant-table-content {
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 /* Tab Bar Styles - Compact & Modern */

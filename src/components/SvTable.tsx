@@ -775,6 +775,7 @@ const SvTable: React.FC<SvTableProps> = (props) => {
             `}</style>
             <ResizeContext.Provider value={resizeContextValue}>
                 <Table
+                    size="small"
                     className={`full-height-table ${props.className || ''}`}
                     showSorterTooltip={false}
                     {...restProps}
